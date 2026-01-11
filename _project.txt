@@ -18,4 +18,4 @@
         ['P', 'P', 'P', 'P', 'P', 'P', 'P', 'P'],
         ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
     ], dtype='U1')
-    BOARD = np.flipud(BOARD) # Flip board upside down for 0 indexing to be correct
+    BOARD = np.flipud(BOARD) # NOTE: this board is flipped upside down for cartesian coordinates

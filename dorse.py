@@ -18,7 +18,7 @@ class Position:
     __slots__ = ('board', 'score', 'wc', 'bc', 'ep', 'sd')
 
     # A state of a chess game
-    # board -- the current board state as a numpy array
+    # board -- the current board state as a numpy array. !IMPOTANT - board is a cartesian grid
     # score -- the board evaluation
     # wc    -- white castling rights, [left/queen side, right/king side]
     # bc    -- black castling rights, [left/queen side, right/king side]
@@ -151,8 +151,7 @@ class Position:
 
         # --- Handle en passant capture ---
         if piece.upper() == 'P' and self.ep and dst == self.ep:
-            pawn_row = r1 + (1 if is_white else -1)
-            self.board[pawn_row][c1] = '.'
+            self.board[r0][c1] = '.'
 
         # --- Update castling rights if rook was captured ---
         captured = self.board[r1][c1]  # destination square BEFORE the move
@@ -218,6 +217,8 @@ class Position:
 
         # --- Switch side ---
         self.sd = 'b' if is_white else 'w'
+
+        return self
 
     def search(self):
         moves = self.gen_moves()

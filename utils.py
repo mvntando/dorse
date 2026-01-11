@@ -46,7 +46,7 @@ def parse_fen(fen: str):
         if file != 8:
             raise ValueError("Invalid FEN rank")
 
-    # Flip so board[0][0] == a1 (white side)
+    # Flip so board[0][0] == a1 (white side) (cartesian coordinates)
     board = np.flipud(board)
 
     # Side to move: keep as 'w' / 'b'
@@ -67,17 +67,17 @@ def parse_fen(fen: str):
     return board, wc, bc, ep_sq, sd
 
 # Check for legal moves
-def legal(self, move):
+def legal(pos, move):
     src, dst, promo = move.src, move.dst, move.promo
     r0, c0 = src
     r1, c1 = dst
 
-    is_white = self.sd == 'w'
+    is_white = pos.sd == 'w'
     opponent = 'b' if is_white else 'w'
 
     # --- Make a backup copy of state ---
-    piece = self.board[r0][c0]
-    captured = self.board[r1][c1]
+    piece = pos.board[r0][c0]
+    captured = pos.board[r1][c1]
 
     # --- Handle castling moves ---
     if piece.upper() == 'K' and abs(c1 - c0) == 2:
@@ -87,58 +87,59 @@ def legal(self, move):
             rook_src, rook_dst = (r0, 0), (r0, 3)
 
         # Temporary move
-        self.board[r0][c0] = '.'
-        self.board[r1][c1] = 'K' if is_white else 'k'
-        self.board[rook_dst[0]][rook_dst[1]] = self.board[rook_src[0]][rook_src[1]]
-        self.board[rook_src[0]][rook_src[1]] = '.'
+        pos.board[r0][c0] = '.'
+        pos.board[r1][c1] = 'K' if is_white else 'k'
+        pos.board[rook_dst[0]][rook_dst[1]] = pos.board[rook_src[0]][rook_src[1]]
+        pos.board[rook_src[0]][rook_src[1]] = '.'
 
         # Check if king passes through or ends up in check
         king_sqs = [(r0, c0), (r0, (c0 + c1) // 2), (r1, c1)]
-        legal = all(not attacked(self, sq, opponent) for sq in king_sqs)
+        legal = all(not attacked(pos, sq, opponent) for sq in king_sqs)
 
         # Restore state
-        self.board[r0][c0] = 'K' if is_white else 'k'
-        self.board[r1][c1] = '.'
-        self.board[rook_src[0]][rook_src[1]] = self.board[rook_dst[0]][rook_dst[1]]
-        self.board[rook_dst[0]][rook_dst[1]] = '.'
+        pos.board[r0][c0] = 'K' if is_white else 'k'
+        pos.board[r1][c1] = '.'
+        pos.board[rook_src[0]][rook_src[1]] = pos.board[rook_dst[0]][rook_dst[1]]
+        pos.board[rook_dst[0]][rook_dst[1]] = '.'
 
         return legal
 
     # --- Handle en passant moves ---
-    was_ep = piece.upper() == 'P' and self.ep and dst == self.ep
+    was_ep = piece.upper() == 'P' and pos.ep and dst == pos.ep
     if was_ep:
         pawn_row = r1 + (1 if is_white else -1)
-        ep_captured = self.board[pawn_row][c1]
-        self.board[pawn_row][c1] = '.'
+        ep_captured = pos.board[pawn_row][c1]
+        pos.board[pawn_row][c1] = '.'
 
     # --- Normal move ---
-    self.board[r0][c0] = '.'
-    self.board[r1][c1] = piece if not promo else (promo if is_white else promo.lower())
+    pos.board[r0][c0] = '.'
+    pos.board[r1][c1] = piece if not promo else (promo if is_white else promo.lower())
 
     # Find king position
     king_sq = None
     for r in range(8):
         for c in range(8):
-            if self.board[r][c] == ('K' if is_white else 'k'):
+            if pos.board[r][c] == ('K' if is_white else 'k'):
                 king_sq = (r, c)
                 break
         if king_sq:
             break
 
     # Check if own king is attacked
-    legal = not attacked(self, king_sq, opponent)
+    legal = not attacked(pos, king_sq, opponent) if king_sq else True
 
     # --- Undo move ---
-    self.board[r0][c0] = piece
-    self.board[r1][c1] = captured
+    pos.board[r0][c0] = piece
+    pos.board[r1][c1] = captured
     if was_ep:
-        self.board[pawn_row][c1] = ep_captured
+        pos.board[pawn_row][c1] = ep_captured
 
     return legal
 
-def attacked(self, sq, sd):
+def attacked(pos, sq, sd):
+        # sd = side to check for attacks from ('w' or 'b')
         r, c = sq
-        board = self.board
+        board = pos.board
         in_bounds = lambda r, c: 0 <= r < 8 and 0 <= c < 8
 
         DIRS = DIRECTIONS  # local alias
@@ -185,10 +186,31 @@ def attacked(self, sq, sd):
 
 # HELPERS
 # Convert a position to algebraic notation
-def notation(sq):
-    files = "abcdefgh"  # columns
-    ranks = "12345678"  # rows from White's perspective
-    if 0 <= sq[0] < 8 and 0 <= sq[1] < 8:
-        return files[sq[1]] + ranks[sq[0]]
-    raise ValueError("Coordinates out of range")
+def square(sq: tuple[int, int]) -> str:
+    y, x = sq
+
+    if not (0 <= x < 8 and 0 <= y < 8):
+        raise ValueError("Coordinates out of range")
+
+    file = chr(ord('a') + x)
+    rank = str(y + 1)
+
+    return file + rank
+
+def coord(s: str) -> tuple[int, int]:
+    if len(s) != 2:
+        raise ValueError("Invalid square notation")
+
+    file, rank = s[0], s[1]
+
+    if not ('a' <= file <= 'h') or not ('1' <= rank <= '8'):
+        raise ValueError("Invalid square notation")
+
+    x = ord(file) - ord('a')
+    y = int(rank) - 1
+
+    return y, x
+
+def move_str(move) -> str:
+    return square(move.src) + square(move.dst) + move.promo
 
