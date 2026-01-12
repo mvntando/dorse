@@ -1,10 +1,16 @@
 import numpy as np
-from dorse import Position, Move, INITIAL
+import pytest
+from dorse import Position, Move
 import utils
 
 # TESTS FOR DORSE MODULE
+
+STARTPOS = utils.START_POS
+INIT_BOARD, WC, BC, EP_SQ, SD = utils.parse_fen(STARTPOS)
+
 def test_initial_position():
-    pos = INITIAL
+    board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
+    pos = Position(board, 0, wc, bc, ep, sd)
 
     expected = np.array([
         ['R','N','B','Q','K','B','N','R'],  # y = 0 (rank 1)
@@ -17,15 +23,16 @@ def test_initial_position():
         ['r','n','b','q','k','b','n','r'],  # y = 7 (rank 8)
     ], dtype='U1')
 
-    assert np.array_equal(pos[0], expected)
-    assert pos[1] == (1, 1)
-    assert pos[2] == (1, 1)
-    assert pos[3] is None
-    assert pos[4] == 'w'
+    assert np.array_equal(board, expected)
+    assert wc == (1, 1)
+    assert bc == (1, 1)
+    assert ep is None
+    assert sd == 'w'
 
 # Generate moves tests
 def test_gen_moves_start():
-    pos = Position(INITIAL[0], 0, INITIAL[1], INITIAL[2], INITIAL[3], 'w')
+    board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
+    pos = Position(board, 0, wc, bc, ep, sd)
     moves = pos.gen_moves()
     move_strs = {utils.move_str(m) for m in moves}
 
@@ -206,6 +213,67 @@ def test_make_move_update_castling_rights():
     assert new_pos.wc == expected_wc
     assert new_pos.bc == expected_bc
 
+# Test making UCI moves
+def test_make_uci_move_e2e4():
+    pos = Position(INIT_BOARD, 0, WC, BC, EP_SQ, SD)
+    pos.make_uci_move("e2e4")
+
+    # Check pawn moved
+    assert pos.board[1][4] == '.'   # e2 empty
+    assert pos.board[3][4] == 'P'   # e4 pawn
+
+def test_make_uci_move_e7e5():
+    board, *_ = utils.parse_fen(utils.START_POS)
+    pos = Position(board, 0, *_)
+    pos.make_uci_move("e2e4")
+    pos.make_uci_move("e7e5")
+
+    # Check pawn moved
+    assert pos.board[6][4] == '.'   # e7 empty
+    assert pos.board[4][4] == 'p'   # e5 pawn
+
+def test_make_uci_move_sequence():
+    board, *_ = utils.parse_fen(utils.START_POS)
+    pos = Position(board, 0, *_)
+
+    moves = ["e2e4", "e7e5", "g1f3", "b8c6"]
+    for uci in moves:
+        pos.make_uci_move(uci)
+
+    # Check white knight moved
+    assert pos.board[0][6] == '.'   # g1
+    assert pos.board[2][5] == 'N'   # f3
+    # Check black knight moved
+    assert pos.board[7][1] == '.'   # b8
+    assert pos.board[5][2] == 'n'   # c6
+
+def test_make_uci_move_promotion():
+    # Simplified board with white pawn on 7th rank
+    board, *_ = utils.parse_fen("8/P7/8/8/8/8/8/8 w - - 0 1")
+    pos = Position(board, 0, *_)
+
+    pos.make_uci_move("a7a8Q")  # promote to queen
+
+    assert pos.board[6][0] == '.'   # a7 empty
+    assert pos.board[7][0] == 'Q'   # a8 queen
+
+def test_make_uci_move_illegal():
+    pos = Position(INIT_BOARD, 0, WC, BC, EP_SQ, SD)
+
+    with pytest.raises(ValueError):
+        pos.make_uci_move("e2e5")  # illegal
+
+def test_make_uci_move_chess960():
+    # Example Chess960 start, assume utils provides fen
+    fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    board, wc, bc, ep, sd = utils.parse_fen(fen)
+    pos = Position(board, 0, wc, bc, ep, sd)
+
+    # Try a simple move
+    pos.make_uci_move("e2e4")
+    assert pos.board[1][4] == '.'
+    assert pos.board[3][4] == 'P'
+    
 def test_search():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
     pos = Position(board, 0, wc, bc, ep, sd)

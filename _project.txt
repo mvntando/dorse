@@ -1,11 +1,5 @@
-|| sunfish
-    python tools/fancy.py -cmd "python sunfish.py"
-
 || engine
     classical search + NNUE evaluation
-
-|| 2D board
-    board = np.array([['a', 'b'], ['c', 'd']], dtype='U1')
 
 || board
     BOARD = np.array([
@@ -19,3 +13,7 @@
         ['R', 'N', 'B', 'Q', 'K', 'B', 'N', 'R']
     ], dtype='U1')
     BOARD = np.flipud(BOARD) # NOTE: this board is flipped upside down for cartesian coordinates
+
+|| faster:
+    position = Position([row[:] for row in INIT_BOARD], 0, WC, BC, EP_SQ, SD)
+    remove gen_moves from uci loop

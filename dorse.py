@@ -1,10 +1,7 @@
 import random as random
-from utils import DIRECTIONS, SLIDING, START_POS, parse_fen, legal
+from utils import DIRECTIONS, SLIDING, START_POS, legal
 
 # GAME LOGIC
-
-INITIAL = parse_fen(START_POS)
-
 # Move representation
 class Move:
     __slots__ = ('src', 'dst', 'promo')
@@ -234,3 +231,23 @@ class Position:
             self.move(move)
             return move
         return None
+    
+    def make_uci_move(self, uci_move):
+        file_from = ord(uci_move[0]) - ord('a')
+        rank_from = int(uci_move[1]) - 1
+        file_to   = ord(uci_move[2]) - ord('a')
+        rank_to   = int(uci_move[3]) - 1
+
+        src = (rank_from, file_from)
+        dst = (rank_to, file_to)
+
+        promo = (p.upper() if self.sd == 'w' else p) if (p := uci_move[4:5]) else None
+
+        for m in self.gen_moves():
+            if m.src == src and m.dst == dst:
+                if promo is None or (m.promo and m.promo.upper() == promo.upper()):
+                    self.move(m)
+                    return
+
+        raise ValueError(f"Illegal UCI move: {uci_move}")
+
