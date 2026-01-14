@@ -2,6 +2,7 @@
 import sys
 from dorse import Position
 import utils
+import search
 
 INIT_BOARD, WC, BC, EP_SQ, SD = utils.parse_fen(utils.START_POS)
 
@@ -45,7 +46,7 @@ def uci_loop():
                 print("bestmove 0000")
                 continue
 
-            move = position.search()
+            move = search.search(position)
             if move is None:
                 print("bestmove 0000")
                 continue

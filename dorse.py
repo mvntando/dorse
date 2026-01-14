@@ -1,5 +1,5 @@
 import random as random
-from utils import DIRECTIONS, SLIDING, START_POS, legal
+from utils import DIRECTIONS, SLIDING, legal
 
 # GAME LOGIC
 # Move representation
@@ -22,6 +22,17 @@ class Position:
     # ep    -- the en passant square
     # sd    -- the player to move
 
+    # TODO: Remove and add push and pop methods 
+    def copy(self):
+        return Position(
+            self.board.copy(),   # NumPy array copy, preserves dtype
+            0,  # do NOT carry score
+            tuple(self.wc),
+            tuple(self.bc),
+            None if self.ep is None else tuple(self.ep),
+            self.sd
+        )
+
     def __init__(self, board, score, wc, bc, ep, sd):
         self.board = board
         self.score = score
@@ -31,7 +42,7 @@ class Position:
         self.sd = sd
 
     # Return pseudo-legal moves for a single piece at a given position.
-    def gen_moves(self):
+    def gen_moves(self) -> list[Move]:
         DIRS = DIRECTIONS  # local alias
         in_bounds = lambda r, c: 0 <= r < 8 and 0 <= c < 8
 

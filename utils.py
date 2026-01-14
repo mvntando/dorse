@@ -23,6 +23,7 @@ DIRECTIONS = {
 # Sliding vs non-sliding
 SLIDING = {"B", "R", "Q"}
 
+
 # Parse FEN string into board representation and game state
 def parse_fen(fen: str):
     parts = fen.split()
@@ -65,6 +66,7 @@ def parse_fen(fen: str):
         ep_sq = (rank, file)
 
     return board, wc, bc, ep_sq, sd
+
 
 # Check for legal moves
 def legal(pos, move):
@@ -136,6 +138,7 @@ def legal(pos, move):
 
     return legal
 
+
 def attacked(pos, sq, sd):
         # sd = side to check for attacks from ('w' or 'b')
         r, c = sq
@@ -183,6 +186,7 @@ def attacked(pos, sq, sd):
                     break  # blocked by another piece
 
         return False
+
 
 # HELPERS
 # Convert a position to algebraic notation
