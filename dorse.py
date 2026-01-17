@@ -1,4 +1,6 @@
 import random as random
+import numpy as np
+from numpy.typing import NDArray
 from utils import DIRECTIONS, SLIDING, legal
 
 # GAME LOGIC
@@ -6,47 +8,64 @@ from utils import DIRECTIONS, SLIDING, legal
 class Move:
     __slots__ = ('src', 'dst', 'promo')
 
-    def __init__(self, src, dst, promo=''):
+    def __init__(self, src: tuple[int, int], dst: tuple[int, int], promo: str =''):
         self.src = src
         self.dst = dst
         self.promo = promo
 
-class Position:
-    __slots__ = ('board', 'score', 'wc', 'bc', 'ep', 'sd')
 
-    # A state of a chess game
-    # board -- the current board state as a numpy array. !IMPOTANT - board is a cartesian grid
-    # score -- the board evaluation
-    # wc    -- white castling rights, [left/queen side, right/king side]
-    # bc    -- black castling rights, [left/queen side, right/king side]
-    # ep    -- the en passant square
-    # sd    -- the player to move
+class Undo:
+    __slots__ = ('move', 'captured', 'wc', 'bc', 'ep', 'sd', 'ep_sq')
 
-    # TODO: Remove and add push and pop methods 
-    def copy(self):
-        return Position(
-            self.board.copy(),   # NumPy array copy, preserves dtype
-            0,  # do NOT carry score
-            tuple(self.wc),
-            tuple(self.bc),
-            None if self.ep is None else tuple(self.ep),
-            self.sd
-        )
-
-    def __init__(self, board, score, wc, bc, ep, sd):
-        self.board = board
-        self.score = score
+    def __init__(self, move: Move, wc: tuple[int, int], bc: tuple[int, int], ep: tuple[int, int] | None, sd: str):
+        self.move = move
         self.wc = wc
         self.bc = bc
         self.ep = ep
         self.sd = sd
+
+        self.captured: str | None = None
+        self.ep_sq: tuple[int, int] | None = None
+
+
+class Position:
+    __slots__ = ('board', 'score', 'wc', 'bc', 'ep', 'sd', 'history')
+
+    # A state of a chess game
+    # board   -- the current board state as a numpy array. !IMPOTANT - board is a cartesian grid
+    # wc      -- white castling rights, [left/queen side, right/king side]
+    # bc      -- black castling rights, [left/queen side, right/king side]
+    # ep      -- the en passant square
+    # sd      -- the player to move
+    # score   -- the board evaluation (none unless incremental evaluation is enabled)
+    # history -- stack of Undo objects for undoing moves
+
+    def __init__(self, board: NDArray[np.str_], wc: tuple[int, int], bc: tuple[int, int], ep: tuple[int, int] | None, sd: str):
+        self.board = board
+        self.wc = wc
+        self.bc = bc
+        self.ep = ep
+        self.sd = sd
+        
+        self.score: int | None = None  # Reserved for future incremental evaluation
+        self.history: list[Undo] = []
+
+    # DEBUG: remove later
+    def copy(self) -> 'Position':
+        return Position(
+            self.board.copy(),
+            self.wc,
+            self.bc,
+            None if self.ep is None else self.ep,
+            self.sd,
+        )
 
     # Return pseudo-legal moves for a single piece at a given position.
     def gen_moves(self) -> list[Move]:
         DIRS = DIRECTIONS  # local alias
         in_bounds = lambda r, c: 0 <= r < 8 and 0 <= c < 8
 
-        moves = []
+        moves: list[Move] = []
         append = lambda move: moves.append(move) if legal(self, move) else None # Only append legal moves
 
         for r0 in range(8):
@@ -149,7 +168,16 @@ class Position:
 
         return moves
 
-    def move(self, move):
+    def push(self, move: Move):
+        # --- Push undo ---
+        undo = Undo(
+            move,
+            self.wc,
+            self.bc,
+            self.ep,
+            self.sd,
+        )
+
         src, dst, promo = move.src, move.dst, move.promo
         r0, c0 = src
         r1, c1 = dst
@@ -159,8 +187,19 @@ class Position:
 
         # --- Handle en passant capture ---
         if piece.upper() == 'P' and self.ep and dst == self.ep:
+            # --- Add captured piece for en passant to undo ---
+            undo.captured = 'p' if is_white else 'P'
+            undo.ep_sq = (r0, c1)
             self.board[r0][c1] = '.'
 
+        else:
+            # --- Normal capture ---
+            captured = self.board[r1][c1]
+            undo.captured = captured if captured != '.' else None
+
+        # --- Append undo to history ---
+        self.history.append(undo)
+        
         # --- Update castling rights if rook was captured ---
         captured = self.board[r1][c1]  # destination square BEFORE the move
         if captured.upper() == 'R':
@@ -227,23 +266,44 @@ class Position:
         self.sd = 'b' if is_white else 'w'
 
         return self
-
-    def search(self):
-        moves = self.gen_moves()
-
-        # Return random moves
-        if moves:
-            return random.choice(moves)
-        return None
-
-    def play(self):
-        move = self.search()
-        if move:
-            self.move(move)
-            return move
-        return None
     
-    def make_uci_move(self, uci_move):
+    def pop(self):
+        undo = self.history.pop()
+
+        move = undo.move
+        r0, c0 = move.src
+        r1, c1 = move.dst
+
+        # Restore state FIRST
+        self.sd = undo.sd
+        self.wc = undo.wc
+        self.bc = undo.bc
+        self.ep = undo.ep
+
+        # --- Undo move ---
+        if move.promo:
+            # Remove promoted piece
+            self.board[r1][c1] = '.'
+
+            # Restore pawn using promo color
+            pawn = 'P' if move.promo.isupper() else 'p'
+            self.board[r0][c0] = pawn
+        else:
+            piece = self.board[r1][c1]
+            self.board[r1][c1] = '.'
+            self.board[r0][c0] = piece
+
+        # --- Restore captured piece ---
+        if undo.captured:
+            if undo.ep_sq:
+                er, ec = undo.ep_sq
+                self.board[er][ec] = undo.captured
+            else:
+                self.board[r1][c1] = undo.captured
+        
+        return self
+    
+    def make_uci_move(self, uci_move: str):
         file_from = ord(uci_move[0]) - ord('a')
         rank_from = int(uci_move[1]) - 1
         file_to   = ord(uci_move[2]) - ord('a')
@@ -257,8 +317,7 @@ class Position:
         for m in self.gen_moves():
             if m.src == src and m.dst == dst:
                 if promo is None or (m.promo and m.promo.upper() == promo.upper()):
-                    self.move(m)
+                    self.push(m)
                     return
 
         raise ValueError(f"Illegal UCI move: {uci_move}")
-

@@ -1,8 +1,6 @@
 import io
-import sys
 import numpy as np
 import pytest
-from dorse import Position
 import utils
 from uci import parse_position, uci_loop, print_id, print_options
 

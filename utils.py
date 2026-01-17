@@ -1,4 +1,5 @@
 import numpy as np
+from numpy.typing import NDArray
 
 # Initial chess board setup
 START_POS = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
@@ -25,14 +26,14 @@ SLIDING = {"B", "R", "Q"}
 
 
 # Parse FEN string into board representation and game state
-def parse_fen(fen: str):
+def parse_fen(fen: str) -> tuple[NDArray[np.str_], tuple[int, int], tuple[int, int], tuple[int, int] | None, str]:
     parts = fen.split()
     if len(parts) < 4:
         raise ValueError("Invalid FEN")
 
     board_part, side, castling, ep = parts[:4]
 
-    board = np.full((8, 8), '.', dtype='U1')
+    board: NDArray[np.str_] = np.full((8, 8), '.', dtype='U1')
 
     # FEN ranks: 8 → 1
     for fen_rank, row in enumerate(board_part.split('/')):
@@ -59,17 +60,16 @@ def parse_fen(fen: str):
 
     # En passant
     if ep == '-':
-        ep_sq = None
+        ep = None
     else:
         file = ord(ep[0]) - ord('a')
         rank = int(ep[1]) - 1   # rank 1 → index 0
-        ep_sq = (rank, file)
+        ep = (rank, file)
 
-    return board, wc, bc, ep_sq, sd
-
+    return board, wc, bc, ep, sd
 
 # Check for legal moves
-def legal(pos, move):
+def legal(pos, move) -> bool:
     src, dst, promo = move.src, move.dst, move.promo
     r0, c0 = src
     r1, c1 = dst
@@ -110,7 +110,7 @@ def legal(pos, move):
     was_ep = piece.upper() == 'P' and pos.ep and dst == pos.ep
     if was_ep:
         pawn_row = r1 + (1 if is_white else -1)
-        ep_captured = pos.board[pawn_row][c1]
+        ep_sq = pos.board[pawn_row][c1]
         pos.board[pawn_row][c1] = '.'
 
     # --- Normal move ---
@@ -134,12 +134,11 @@ def legal(pos, move):
     pos.board[r0][c0] = piece
     pos.board[r1][c1] = captured
     if was_ep:
-        pos.board[pawn_row][c1] = ep_captured
+        pos.board[pawn_row][c1] = ep_sq
 
     return legal
 
-
-def attacked(pos, sq, sd):
+def attacked(pos, sq, sd) -> bool:
         # sd = side to check for attacks from ('w' or 'b')
         r, c = sq
         board = pos.board
@@ -187,34 +186,20 @@ def attacked(pos, sq, sd):
 
         return False
 
+def checkmate(pos) -> bool:
+    is_white = pos.sd == 'w'
+    opponent = 'b' if is_white else 'w'
 
-# HELPERS
-# Convert a position to algebraic notation
-def square(sq: tuple[int, int]) -> str:
-    y, x = sq
+    # Find king position
+    king_sq = None
+    for r in range(8):
+        for c in range(8):
+            if pos.board[r][c] == ('K' if is_white else 'k'):
+                king_sq = (r, c)
+                break
+        if king_sq:
+            break
 
-    if not (0 <= x < 8 and 0 <= y < 8):
-        raise ValueError("Coordinates out of range")
-
-    file = chr(ord('a') + x)
-    rank = str(y + 1)
-
-    return file + rank
-
-def coord(s: str) -> tuple[int, int]:
-    if len(s) != 2:
-        raise ValueError("Invalid square notation")
-
-    file, rank = s[0], s[1]
-
-    if not ('a' <= file <= 'h') or not ('1' <= rank <= '8'):
-        raise ValueError("Invalid square notation")
-
-    x = ord(file) - ord('a')
-    y = int(rank) - 1
-
-    return y, x
-
-def move_str(move) -> str:
-    return square(move.src) + square(move.dst) + move.promo
-
+    if king_sq and attacked(pos, king_sq, opponent):
+        return True
+    return False

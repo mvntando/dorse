@@ -15,5 +15,5 @@
     BOARD = np.flipud(BOARD) # NOTE: this board is flipped upside down for cartesian coordinates
 
 || faster:
-    position = Position([row[:] for row in INIT_BOARD], 0, WC, BC, EP_SQ, SD)
+    position = Position([row[:] for row in INIT_BOARD], 0, WC, BC, EP, SD)
     remove gen_moves from uci loop

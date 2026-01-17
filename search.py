@@ -7,23 +7,25 @@
 # search.py
 
 from dorse import Position, Move
+from utils import checkmate
 from eval import evaluate
-from constants import INF
+import helpers # <-- DEBUG
 
+INF = 10**9
+MATE = INF - 1
 
 def search(position: 'Position', depth: int = 4) -> 'Move | None':
     """
-    Top-level search. Returns the best move for the current side to move.
+    Iterative deepening search to find the best move.  
     """
     best_move = None
     alpha = -INF
     beta = INF
 
     for move in position.gen_moves():
-        new_pos = position.copy()
-        new_pos.move(move)
-
-        score = -alphabeta(new_pos, depth - 1, -beta, -alpha)
+        position.push(move)
+        score = -alphabeta(position, depth - 1, -beta, -alpha)
+        position.pop()
 
         if score > alpha:
             alpha = score
@@ -31,33 +33,27 @@ def search(position: 'Position', depth: int = 4) -> 'Move | None':
 
     return best_move
 
-
 def alphabeta(position: 'Position', depth: int, alpha: int, beta: int) -> int:
     """
-    Negamax Alpha-Beta search.
-    Returns the score for the side to move in `position`.
+    Alpha-beta pruning search algorithm.
     """
-    # Leaf node or depth 0
     if depth == 0:
-        val = evaluate(position)
-        # Adjust for side to move: + for white, - for black
-        val = val if position.sd == 'w' else -val
-        return val
+        return evaluate(position)
 
     moves = position.gen_moves()
     if not moves:
-        val = evaluate(position)
-        val = val if position.sd == 'w' else -val
-        return val
+        if checkmate(position):
+            return -MATE + depth  # Checkmate
+        else:
+            return 0  # stalemate
 
     for move in moves:
-        new_pos = position.copy()
-        new_pos.move(move)
-
-        score = -alphabeta(new_pos, depth - 1, -beta, -alpha)
+        position.push(move)
+        score = -alphabeta(position, depth - 1, -beta, -alpha)
+        position.pop()
 
         if score >= beta:
-            return score
+            return beta
         if score > alpha:
             alpha = score
 

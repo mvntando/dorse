@@ -4,11 +4,12 @@ from dorse import Position
 import utils
 import search
 
-INIT_BOARD, WC, BC, EP_SQ, SD = utils.parse_fen(utils.START_POS)
+INIT_BOARD, WC, BC, EP, SD = utils.parse_fen(utils.START_POS)
 
 def print_id():
     print("id name Dorse")
     print("id author MV")
+    print("id country Bulawayo")
 
 def print_options():
     # Add engine options here if needed
@@ -36,7 +37,7 @@ def uci_loop():
 
         elif line == "ucinewgame":
             # Always start fresh
-            position = Position(INIT_BOARD.copy(), 0, WC, BC, EP_SQ, SD)
+            position = Position(INIT_BOARD.copy(), WC, BC, EP, SD)
 
         elif line.startswith("position"):
             position = parse_position(line)
@@ -45,8 +46,17 @@ def uci_loop():
             if position is None:
                 print("bestmove 0000")
                 continue
+            
+            depth = 4  # default depth
+            tokens = line.split()
+            if "depth" in tokens:
+                try:
+                    depth_index = tokens.index("depth")
+                    depth = int(tokens[depth_index + 1])
+                except (IndexError, ValueError):
+                    depth = 4  # fallback to default if parsing fails
 
-            move = search.search(position)
+            move = search.search(position, depth=depth)
             if move is None:
                 print("bestmove 0000")
                 continue
@@ -54,25 +64,25 @@ def uci_loop():
             # Convert internal coordinates to UCI format
             src = chr(ord('a') + move.src[1]) + str(move.src[0] + 1)
             dst = chr(ord('a') + move.dst[1]) + str(move.dst[0] + 1)
-            promo = move.promo.lower() if move.promo else ""
+            promo = move.promo.lower()
 
             bestmove_str = f"bestmove {src}{dst}{promo}"
             print(bestmove_str)
 
         elif line == "quit":
+            print("")
             break
-
 
 def parse_position(line):
     tokens = line.split()
 
     if tokens[1] == "startpos":
-        pos = Position(INIT_BOARD.copy(), 0, WC, BC, EP_SQ, SD)
+        pos = Position(INIT_BOARD.copy(), WC, BC, EP, SD)
         idx = 2
     elif tokens[1] == "fen":
         fen = " ".join(tokens[2:8])
         board, wc, bc, ep, sd = utils.parse_fen(fen)
-        pos = Position(board, 0, wc, bc, ep, sd)
+        pos = Position(board, wc, bc, ep, sd)
         idx = 8
     else:
         return None
@@ -84,6 +94,7 @@ def parse_position(line):
                 pos.make_uci_move(uci_move)
             except Exception as e:
                 print(f"[ERROR] Illegal move {uci_move}: {e}", file=sys.stderr)
+                raise
 
     return pos
 

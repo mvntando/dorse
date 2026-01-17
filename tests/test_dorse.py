@@ -1,16 +1,18 @@
+from shutil import move
 import numpy as np
 import pytest
 from dorse import Position, Move
 import utils
+import helpers
 
 # TESTS FOR DORSE MODULE
 
 STARTPOS = utils.START_POS
-INIT_BOARD, WC, BC, EP_SQ, SD = utils.parse_fen(STARTPOS)
+INIT_BOARD, WC, BC, EP, SD = utils.parse_fen(STARTPOS)
 
 def test_initial_position():
     board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
-    pos = Position(board, 0, wc, bc, ep, sd)
+    pos = Position(board, wc, bc, ep, sd)
 
     expected = np.array([
         ['R','N','B','Q','K','B','N','R'],  # y = 0 (rank 1)
@@ -32,9 +34,9 @@ def test_initial_position():
 # Generate moves tests
 def test_gen_moves_start():
     board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
-    pos = Position(board, 0, wc, bc, ep, sd)
+    pos = Position(board, wc, bc, ep, sd)
     moves = pos.gen_moves()
-    move_strs = {utils.move_str(m) for m in moves}
+    move_strs = {helpers.move_str(m) for m in moves}
 
     expected_moves = {
         "a2a3", "a2a4",
@@ -52,10 +54,10 @@ def test_gen_moves_start():
     assert move_strs == expected_moves
     
 def test_gen_moves_after_e4():
-    board, *_ = utils.parse_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
-    pos = Position(board, 0, *_)
+    board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
+    pos = Position(board, wc, bc, ep, sd)
     moves = pos.gen_moves()
-    move_strs = {utils.move_str(m) for m in moves}
+    move_strs = {helpers.move_str(m) for m in moves}
 
     expected_moves = {
         "a7a6", "a7a5",
@@ -73,10 +75,10 @@ def test_gen_moves_after_e4():
     assert move_strs == expected_moves
 
 def test_gen_moves_pawn_promotion():
-    board, *_ = utils.parse_fen("8/P7/8/8/8/8/7p/8 w - - 0 1")
-    pos = Position(board, 0, *_)
+    board, wc, bc, ep, sd = utils.parse_fen("8/P7/8/8/8/8/7p/8 w - - 0 1")
+    pos = Position(board, wc, bc, ep, sd)
     moves = pos.gen_moves()
-    move_strs = {utils.move_str(m) for m in moves}
+    move_strs = {helpers.move_str(m) for m in moves}
 
     expected_moves = {
         "a7a8Q", "a7a8R", "a7a8B", "a7a8N",
@@ -86,9 +88,9 @@ def test_gen_moves_pawn_promotion():
 
 def test_gen_moves_castling():
     board, wc, bc, ep, sd = utils.parse_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")
-    pos = Position(board, 0, wc, bc, ep, sd)
+    pos = Position(board, wc, bc, ep, sd)
     moves = pos.gen_moves()
-    move_strs = {utils.move_str(m) for m in moves}
+    move_strs = {helpers.move_str(m) for m in moves}
 
     expected_moves = {
         "e1g1", "e1c1"
@@ -98,9 +100,9 @@ def test_gen_moves_castling():
 
 def test_gen_moves_en_passant():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/1pp1pppp/p7/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 1")
-    pos = Position(board, 0, wc, bc, ep, sd)
+    pos = Position(board, wc, bc, ep, sd)
     moves = pos.gen_moves()
-    move_strs = {utils.move_str(m) for m in moves}
+    move_strs = {helpers.move_str(m) for m in moves}
 
     expected_moves = {
         "e5d6"
@@ -109,10 +111,10 @@ def test_gen_moves_en_passant():
     assert expected_moves.issubset(move_strs)
 
 def test_gen_moves_king_in_check():
-    board, *_ = utils.parse_fen("4k2r/8/5N2/8/8/8/8/4K3 b k - 0 1") # black to move, knight attacks king
-    pos = Position(board, 0, *_)
+    board, wc, bc, ep, sd = utils.parse_fen("4k2r/8/5N2/8/8/8/8/4K3 b k - 0 1") # black to move, knight attacks king
+    pos = Position(board, wc, bc, ep, sd)
     moves = pos.gen_moves()
-    move_strs = {utils.move_str(m) for m in moves}
+    move_strs = {helpers.move_str(m) for m in moves}
 
     # Black king must move out of check
     expected_moves = {
@@ -122,10 +124,10 @@ def test_gen_moves_king_in_check():
     assert move_strs == expected_moves
 
 def test_gen_moves_no_legal():
-    board, *_ = utils.parse_fen("4k2r/8/6N1/8/8/8/8/4K3 b k - 0 1") # black to move, knight attacks king
-    pos = Position(board, 0, *_)
+    board, wc, bc, ep, sd = utils.parse_fen("4k2r/8/6N1/8/8/8/8/4K3 b k - 0 1") # black to move, knight attacks king
+    pos = Position(board, wc, bc, ep, sd)
     moves = pos.gen_moves()
-    move_strs = {utils.move_str(m) for m in moves}
+    move_strs = {helpers.move_str(m) for m in moves}
 
     # Black cannot castle because the king is in check
     unexpected_moves = {
@@ -134,13 +136,13 @@ def test_gen_moves_no_legal():
 
     assert not unexpected_moves.intersection(move_strs)
 
-# Test playing a move
-def test_make_move():
+# Test playing a move (push)
+def test_push():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-    pos = Position(board, 0, wc, bc, ep, sd)
+    pos = Position(board, wc, bc, ep, sd)
 
-    move = Move(utils.coord('e2'), utils.coord('e4'))  # e2 to e4
-    new_pos = pos.move(move)
+    move = Move(helpers.coord('e2'), helpers.coord('e4'))  # e2 to e4
+    new_pos = pos.push(move)
 
     expected_board, _, _, expected_ep, _ = utils.parse_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
 
@@ -148,12 +150,12 @@ def test_make_move():
     assert new_pos.ep == expected_ep
     assert new_pos.sd == 'b'
 
-def test_make_move_capture():
+def test_push_capture():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1")
-    pos = Position(board, 0, wc, bc, ep, sd)
+    pos = Position(board, wc, bc, ep, sd)
 
-    move = Move(utils.coord('e4'), utils.coord('d5'))  # e4 captures e5
-    new_pos = pos.move(move)
+    move = Move(helpers.coord('e4'), helpers.coord('d5'))  # e4 captures e5
+    new_pos = pos.push(move)
 
     expected_board, _, _, expected_ep, _ = utils.parse_fen("rnbqkbnr/ppp1pppp/8/3P4/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1")
 
@@ -161,12 +163,12 @@ def test_make_move_capture():
     assert new_pos.ep == expected_ep
     assert new_pos.sd == 'b'
 
-def test_make_move_en_passant():
+def test_push_en_passant():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/1pp1pppp/p7/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 1")
-    pos = Position(board, 0, wc, bc, ep, sd)
+    pos = Position(board, wc, bc, ep, sd)
 
-    move = Move(utils.coord('e5'), utils.coord('d6'))  # e5 captures d5 en passant
-    new_pos = pos.move(move)
+    move = Move(helpers.coord('e5'), helpers.coord('d6'))  # e5 captures d5 en passant
+    new_pos = pos.push(move)
 
     expected_board, _, _, expected_ep, _ = utils.parse_fen("rnbqkbnr/1pp1pppp/p2P4/8/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2")
 
@@ -174,12 +176,12 @@ def test_make_move_en_passant():
     assert new_pos.ep == expected_ep
     assert new_pos.sd == 'b'
 
-def test_make_move_castling():
+def test_push_castling():
     board, wc, bc, ep, sd = utils.parse_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")
-    pos = Position(board, 0, wc, bc, ep, sd)
+    pos = Position(board, wc, bc, ep, sd)
 
-    move = Move(utils.coord('e1'), utils.coord('g1'))  # White kingside castling
-    new_pos = pos.move(move)
+    move = Move(helpers.coord('e1'), helpers.coord('g1'))  # White kingside castling
+    new_pos = pos.push(move)
 
     expected_board, _, _, expected_ep, _ = utils.parse_fen("r3k2r/8/8/8/8/8/8/R4RK1 b kq - 0 1")
 
@@ -187,12 +189,12 @@ def test_make_move_castling():
     assert new_pos.ep == expected_ep
     assert new_pos.sd == 'b'
 
-def test_make_move_promotion():
+def test_push_promotion():
     board, wc, bc, ep, sd = utils.parse_fen("8/P7/8/8/8/8/7p/8 w - - 0 1")
-    pos = Position(board, 0, wc, bc, ep, sd)
+    pos = Position(board, wc, bc, ep, sd)
 
-    move = Move(utils.coord('a7'), utils.coord('a8'), 'Q')  # a7 to a8 promoting to Queen
-    new_pos = pos.move(move)
+    move = Move(helpers.coord('a7'), helpers.coord('a8'), 'Q')  # a7 to a8 promoting to Queen
+    new_pos = pos.push(move)
 
     expected_board, _, _, expected_ep, _ = utils.parse_fen("Q7/8/8/8/8/8/7p/8 b - - 0 1")
 
@@ -200,12 +202,12 @@ def test_make_move_promotion():
     assert new_pos.ep == expected_ep
     assert new_pos.sd == 'b'
 
-def test_make_move_update_castling_rights():
+def test_push_update_castling_rights():
     board, wc, bc, ep, sd = utils.parse_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")
-    pos = Position(board, 0, wc, bc, ep, sd)
+    pos = Position(board, wc, bc, ep, sd)
 
-    move = Move(utils.coord('h1'), utils.coord('h2'))  # Move white rook from h1 to h2
-    new_pos = pos.move(move)
+    move = Move(helpers.coord('h1'), helpers.coord('h2'))  # Move white rook from h1 to h2
+    new_pos = pos.push(move)
 
     expected_wc = (1, 0)  # White can no longer castle kingside
     expected_bc = bc
@@ -213,9 +215,55 @@ def test_make_move_update_castling_rights():
     assert new_pos.wc == expected_wc
     assert new_pos.bc == expected_bc
 
+# Test pop
+def test_pop():
+    board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+    pos = Position(board, wc, bc, ep, sd)
+    orig_pos = pos.copy()
+
+    move = Move(helpers.coord('e2'), helpers.coord('e4'))  # e2 to e4
+    pos = pos.push(move)
+    assert not np.array_equal(orig_pos.board, pos.board)
+    
+    pos = pos.pop()
+
+    assert np.array_equal(orig_pos.board, pos.board)
+    assert orig_pos.wc == pos.wc
+    assert orig_pos.bc == pos.bc
+    assert orig_pos.ep == pos.ep
+    assert orig_pos.sd == pos.sd
+    assert orig_pos.history == pos.history
+
+def test_pop_full():
+    def snapshot(pos):
+        return (
+            tuple(pos.board.tolist()),
+            pos.wc,
+            pos.bc,
+            pos.ep,
+            pos.sd,
+        )
+
+    board, wc, bc, ep, sd = utils.parse_fen(
+        "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    )
+    pos = Position(board, wc, bc, ep, sd)
+
+    before = snapshot(pos)
+
+    moves = pos.gen_moves()
+    assert moves, "No moves generated"
+
+    for move in moves:
+        pos.push(move)
+        pos.pop()
+
+        after = snapshot(pos)
+        assert after == before, f"Position corrupted by move {move}"
+
 # Test making UCI moves
 def test_make_uci_move_e2e4():
-    pos = Position(INIT_BOARD, 0, WC, BC, EP_SQ, SD)
+    pos = Position(INIT_BOARD.copy(), WC, BC, EP, SD)
     pos.make_uci_move("e2e4")
 
     # Check pawn moved
@@ -223,8 +271,8 @@ def test_make_uci_move_e2e4():
     assert pos.board[3][4] == 'P'   # e4 pawn
 
 def test_make_uci_move_e7e5():
-    board, *_ = utils.parse_fen(utils.START_POS)
-    pos = Position(board, 0, *_)
+    board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
+    pos = Position(board, wc, bc, ep, sd)
     pos.make_uci_move("e2e4")
     pos.make_uci_move("e7e5")
 
@@ -233,8 +281,8 @@ def test_make_uci_move_e7e5():
     assert pos.board[4][4] == 'p'   # e5 pawn
 
 def test_make_uci_move_sequence():
-    board, *_ = utils.parse_fen(utils.START_POS)
-    pos = Position(board, 0, *_)
+    board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
+    pos = Position(board, wc, bc, ep, sd)
 
     moves = ["e2e4", "e7e5", "g1f3", "b8c6"]
     for uci in moves:
@@ -249,8 +297,8 @@ def test_make_uci_move_sequence():
 
 def test_make_uci_move_promotion():
     # Simplified board with white pawn on 7th rank
-    board, *_ = utils.parse_fen("8/P7/8/8/8/8/8/8 w - - 0 1")
-    pos = Position(board, 0, *_)
+    board, wc, bc, ep, sd = utils.parse_fen("8/P7/8/8/8/8/8/8 w - - 0 1")
+    pos = Position(board, wc, bc, ep, sd)
 
     pos.make_uci_move("a7a8Q")  # promote to queen
 
@@ -258,7 +306,7 @@ def test_make_uci_move_promotion():
     assert pos.board[7][0] == 'Q'   # a8 queen
 
 def test_make_uci_move_illegal():
-    pos = Position(INIT_BOARD, 0, WC, BC, EP_SQ, SD)
+    pos = Position(INIT_BOARD.copy(), WC, BC, EP, SD)
 
     with pytest.raises(ValueError):
         pos.make_uci_move("e2e5")  # illegal
@@ -267,30 +315,11 @@ def test_make_uci_move_chess960():
     # Example Chess960 start, assume utils provides fen
     fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
     board, wc, bc, ep, sd = utils.parse_fen(fen)
-    pos = Position(board, 0, wc, bc, ep, sd)
+    pos = Position(board, wc, bc, ep, sd)
 
     # Try a simple move
     pos.make_uci_move("e2e4")
     assert pos.board[1][4] == '.'
     assert pos.board[3][4] == 'P'
-    
-def test_search():
-    board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-    pos = Position(board, 0, wc, bc, ep, sd)
 
-    move = pos.search()
-    assert move is not None
 
-def test_search_no_moves():
-    board, *_ = utils.parse_fen("8/8/8/8/8/8/8/K7 b - - 0 1")  # Black to move, no pieces
-    pos = Position(board, 0, *_)
-
-    move = pos.search()
-    assert move is None
-
-def test_play():
-    board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-    pos = Position(board, 0, wc, bc, ep, sd)
-
-    move = pos.play()
-    assert move is not None
