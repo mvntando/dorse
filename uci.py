@@ -47,14 +47,14 @@ def uci_loop():
                 print("bestmove 0000")
                 continue
             
-            depth = 4  # default depth
+            depth: int | None = None  # default depth
             tokens = line.split()
             if "depth" in tokens:
                 try:
                     depth_index = tokens.index("depth")
                     depth = int(tokens[depth_index + 1])
                 except (IndexError, ValueError):
-                    depth = 4  # fallback to default if parsing fails
+                    depth = None  # fallback to default if parsing fails
 
             move = search.search(position, depth=depth)
             if move is None:

@@ -60,7 +60,7 @@ class Position:
             self.sd,
         )
 
-    # Return pseudo-legal moves for a single piece at a given position.
+    # Return legal moves for at a given position.
     def gen_moves(self) -> list[Move]:
         DIRS = DIRECTIONS  # local alias
         in_bounds = lambda r, c: 0 <= r < 8 and 0 <= c < 8
@@ -69,7 +69,7 @@ class Position:
         append = lambda move: moves.append(move) if legal(self, move) else None # Only append legal moves
 
         for r0 in range(8):
-            row = self.board[r0]  # local row ref for a tiny speed boost
+            row = self.board[r0]  # local row ref
             for c0 in range(8):
                 piece = row[c0]
                 if piece == '.':
@@ -166,6 +166,76 @@ class Position:
                             self.board[back_row][3] == '.'):
                             append(Move((r0, c0), (back_row, 2), ""))
 
+        return moves
+    
+    # Return pseudo-legal capture moves at a given position.
+    def gen_captures(self) -> list[Move]: # TODO: Test
+        DIRS = DIRECTIONS
+        in_bounds = lambda r, c: 0 <= r < 8 and 0 <= c < 8
+
+        moves: list[Move] = []
+
+        for r0 in range(8):
+            for c0 in range(8):
+                piece = self.board[r0][c0]
+                if piece == '.':
+                    continue
+
+                if self.sd == 'w':
+                    if not piece.isupper():
+                        continue
+                else:
+                    if not piece.islower():
+                        continue
+
+                is_white = piece.isupper()
+                pu = piece.upper()
+
+                if pu == 'P':
+                    cap_dirs = DIRS["P_capture"] if is_white else DIRS["p_capture"]
+                    promo_row = 7 if is_white else 0
+
+                    for dr, dc in cap_dirs:
+                        r = r0 + dr; c = c0 + dc
+                        if not in_bounds(r, c):
+                            continue
+
+                        target = self.board[r][c]
+
+                        # normal capture
+                        if target != '.' and target.isupper() != is_white:
+                            if r == promo_row:
+                                for promo in ("Q","R","B","N"):
+                                    moves.append(Move((r0,c0),(r,c),promo))
+                            else:
+                                moves.append(Move((r0,c0),(r,c),""))
+
+                        # en passant
+                        elif self.ep is not None and (r, c) == self.ep:
+                            moves.append(Move((r0,c0),(r,c),""))
+
+                    continue
+
+                dirs = DIRS[pu]
+                sliding = pu in SLIDING
+
+                for dr, dc in dirs:
+                    r = r0; c = c0
+                    while True:
+                        r += dr; c += dc
+                        if not in_bounds(r, c):
+                            break
+
+                        target = self.board[r][c]
+                        if target == '.':
+                            if not sliding:
+                                break
+                            continue
+
+                        if target.isupper() != is_white:
+                            moves.append(Move((r0,c0),(r,c),""))
+                        break
+        
         return moves
 
     def push(self, move: Move):

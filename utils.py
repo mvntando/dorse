@@ -27,6 +27,14 @@ SLIDING = {"B", "R", "Q"}
 
 # Parse FEN string into board representation and game state
 def parse_fen(fen: str) -> tuple[NDArray[np.str_], tuple[int, int], tuple[int, int], tuple[int, int] | None, str]:
+    """
+    Docstring for parse_fen
+    
+    :param fen: Description
+    :type fen: str
+    :return: Description
+    :rtype: tuple[NDArray[str_], tuple[int, int], tuple[int, int], tuple[int, int] | None, str]
+    """
     parts = fen.split()
     if len(parts) < 4:
         raise ValueError("Invalid FEN")
@@ -70,6 +78,16 @@ def parse_fen(fen: str) -> tuple[NDArray[np.str_], tuple[int, int], tuple[int, i
 
 # Check for legal moves
 def legal(pos, move) -> bool:
+    """
+    Is the given move legal?
+    
+    :param pos: Position: dorse.Position
+    :type pos: Position
+    :param move: Move: dorse.Move
+    :type move: Move
+    :return: is the move legal
+    :rtype: bool
+    """
     src, dst, promo = move.src, move.dst, move.promo
     r0, c0 = src
     r1, c1 = dst
@@ -139,6 +157,15 @@ def legal(pos, move) -> bool:
     return legal
 
 def attacked(pos, sq, sd) -> bool:
+        """
+        Is the given square attacked?
+        
+        :param pos: Description
+        :param sq: Description
+        :param sd: Description
+        :return: Description
+        :rtype: bool
+        """
         # sd = side to check for attacks from ('w' or 'b')
         r, c = sq
         board = pos.board
@@ -186,7 +213,14 @@ def attacked(pos, sq, sd) -> bool:
 
         return False
 
-def checkmate(pos) -> bool:
+def check(pos) -> bool: # TODO: Test
+    """
+    Is the side to move in check?
+    
+    :param pos: Description
+    :return: Description
+    :rtype: bool
+    """
     is_white = pos.sd == 'w'
     opponent = 'b' if is_white else 'w'
 
@@ -203,3 +237,26 @@ def checkmate(pos) -> bool:
     if king_sq and attacked(pos, king_sq, opponent):
         return True
     return False
+
+def capture(pos, move) -> bool: # TODO: Test
+    """
+    Docstring for capture
+    
+    :param pos: Description
+    :param move: Description
+    :return: Description
+    :rtype: bool
+    """
+    target_square = pos.board[move.dst[0]][move.dst[1]]
+    if target_square != '.':
+        return True
+    
+    # En passant: pawn moves diagonally to empty square
+    piece = pos.board[move.src[0]][move.src[1]]
+    if piece.lower() == 'p':  # Is it a pawn?
+        # Diagonal move (x changes)
+        if move.src[1] != move.dst[1]:
+            return True  # Pawn diagonal to empty = en passant
+    
+    return False
+

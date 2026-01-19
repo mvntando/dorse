@@ -1,6 +1,6 @@
 import numpy as np
 import dorse
-from utils import parse_fen, attacked, legal, checkmate
+from utils import parse_fen, attacked, legal, check
 import helpers
 
 # Tests for notation conversion
@@ -89,10 +89,12 @@ def test_enpassant_legal():
     assert is_legal is True
 
 # Tests for checkmate
-def test_checkmate():
+def test_check():
     board, wc, bc, ep, sd = parse_fen("rnbqkbnr/2pp1Qpp/p7/1p2p3/2B1P3/8/PPPP1PPP/RNB1K1NR b KQkq - 0 1") # Scholar's mate position
     pos = dorse.Position(board, wc, bc, ep, sd)
 
-    mate = checkmate(pos)
+    mate = check(pos)
     assert mate is True
 
+def test_capture():
+    board, wc, bc, ep, sd = parse_fen("8/8/8/8/4P3/8/8/8 w - - 0 1")
