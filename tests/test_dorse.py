@@ -267,8 +267,8 @@ def test_make_uci_move_e2e4():
     pos.make_uci_move("e2e4")
 
     # Check pawn moved
-    assert pos.board[1][4] == '.'   # e2 empty
-    assert pos.board[3][4] == 'P'   # e4 pawn
+    assert pos.board[1, 4] == '.'   # e2 empty
+    assert pos.board[3, 4] == 'P'   # e4 pawn
 
 def test_make_uci_move_e7e5():
     board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
@@ -277,8 +277,8 @@ def test_make_uci_move_e7e5():
     pos.make_uci_move("e7e5")
 
     # Check pawn moved
-    assert pos.board[6][4] == '.'   # e7 empty
-    assert pos.board[4][4] == 'p'   # e5 pawn
+    assert pos.board[6, 4] == '.'   # e7 empty
+    assert pos.board[4, 4] == 'p'   # e5 pawn
 
 def test_make_uci_move_sequence():
     board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
@@ -289,11 +289,11 @@ def test_make_uci_move_sequence():
         pos.make_uci_move(uci)
 
     # Check white knight moved
-    assert pos.board[0][6] == '.'   # g1
-    assert pos.board[2][5] == 'N'   # f3
+    assert pos.board[0, 6] == '.'   # g1
+    assert pos.board[2, 5] == 'N'   # f3
     # Check black knight moved
-    assert pos.board[7][1] == '.'   # b8
-    assert pos.board[5][2] == 'n'   # c6
+    assert pos.board[7, 1] == '.'   # b8
+    assert pos.board[5, 2] == 'n'   # c6
 
 def test_make_uci_move_promotion():
     # Simplified board with white pawn on 7th rank
@@ -302,8 +302,8 @@ def test_make_uci_move_promotion():
 
     pos.make_uci_move("a7a8Q")  # promote to queen
 
-    assert pos.board[6][0] == '.'   # a7 empty
-    assert pos.board[7][0] == 'Q'   # a8 queen
+    assert pos.board[6, 0] == '.'   # a7 empty
+    assert pos.board[7, 0] == 'Q'   # a8 queen
 
 def test_make_uci_move_illegal():
     pos = Position(INIT_BOARD.copy(), WC, BC, EP, SD)
@@ -319,7 +319,7 @@ def test_make_uci_move_chess960():
 
     # Try a simple move
     pos.make_uci_move("e2e4")
-    assert pos.board[1][4] == '.'
-    assert pos.board[3][4] == 'P'
+    assert pos.board[1, 4] == '.'
+    assert pos.board[3, 4] == 'P'
 
 

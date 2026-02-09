@@ -56,7 +56,7 @@ def parse_fen(fen: str) -> tuple[NDArray[np.str_], tuple[int, int], tuple[int, i
         if file != 8:
             raise ValueError("Invalid FEN rank")
 
-    # Flip so board[0][0] == a1 (white side) (cartesian coordinates)
+    # Flip so board[0, 0] == a1 (white side) (cartesian coordinates)
     board = np.flipud(board)
 
     # Side to move: keep as 'w' / 'b'
@@ -96,8 +96,8 @@ def legal(pos, move) -> bool:
     opponent = 'b' if is_white else 'w'
 
     # --- Make a backup copy of state ---
-    piece = pos.board[r0][c0]
-    captured = pos.board[r1][c1]
+    piece = pos.board[r0, c0]
+    captured = pos.board[r1, c1]
 
     # --- Handle castling moves ---
     if piece.upper() == 'K' and abs(c1 - c0) == 2:
@@ -107,20 +107,20 @@ def legal(pos, move) -> bool:
             rook_src, rook_dst = (r0, 0), (r0, 3)
 
         # Temporary move
-        pos.board[r0][c0] = '.'
-        pos.board[r1][c1] = 'K' if is_white else 'k'
-        pos.board[rook_dst[0]][rook_dst[1]] = pos.board[rook_src[0]][rook_src[1]]
-        pos.board[rook_src[0]][rook_src[1]] = '.'
+        pos.board[r0, c0] = '.'
+        pos.board[r1, c1] = 'K' if is_white else 'k'
+        pos.board[rook_dst] = pos.board[rook_src]
+        pos.board[rook_src] = '.'
 
         # Check if king passes through or ends up in check
         king_sqs = [(r0, c0), (r0, (c0 + c1) // 2), (r1, c1)]
         legal = all(not attacked(pos, sq, opponent) for sq in king_sqs)
 
         # Restore state
-        pos.board[r0][c0] = 'K' if is_white else 'k'
-        pos.board[r1][c1] = '.'
-        pos.board[rook_src[0]][rook_src[1]] = pos.board[rook_dst[0]][rook_dst[1]]
-        pos.board[rook_dst[0]][rook_dst[1]] = '.'
+        pos.board[r0, c0] = 'K' if is_white else 'k'
+        pos.board[r1, c1] = '.'
+        pos.board[rook_src] = pos.board[rook_dst]
+        pos.board[rook_dst] = '.'
 
         return legal
 
@@ -128,18 +128,18 @@ def legal(pos, move) -> bool:
     was_ep = piece.upper() == 'P' and pos.ep and dst == pos.ep
     if was_ep:
         pawn_row = r1 + (1 if is_white else -1)
-        ep_sq = pos.board[pawn_row][c1]
-        pos.board[pawn_row][c1] = '.'
+        ep_sq = pos.board[pawn_row, c1]
+        pos.board[pawn_row, c1] = '.'
 
     # --- Normal move ---
-    pos.board[r0][c0] = '.'
-    pos.board[r1][c1] = piece if not promo else (promo if is_white else promo.lower())
+    pos.board[r0, c0] = '.'
+    pos.board[r1, c1] = piece if not promo else (promo if is_white else promo.lower())
 
     # Find king position
     king_sq = None
     for r in range(8):
         for c in range(8):
-            if pos.board[r][c] == ('K' if is_white else 'k'):
+            if pos.board[r, c] == ('K' if is_white else 'k'):
                 king_sq = (r, c)
                 break
         if king_sq:
@@ -149,10 +149,10 @@ def legal(pos, move) -> bool:
     legal = not attacked(pos, king_sq, opponent) if king_sq else True
 
     # --- Undo move ---
-    pos.board[r0][c0] = piece
-    pos.board[r1][c1] = captured
+    pos.board[r0, c0] = piece
+    pos.board[r1, c1] = captured
     if was_ep:
-        pos.board[pawn_row][c1] = ep_sq
+        pos.board[pawn_row, c1] = ep_sq
 
     return legal
 
@@ -178,19 +178,19 @@ def attacked(pos, sq, sd) -> bool:
         pawn = 'P' if sd == 'w' else 'p'
         for dr, dc in pawn_dirs:
             rr, cc = r + dr, c + dc
-            if in_bounds(rr, cc) and board[rr][cc] == pawn:
+            if in_bounds(rr, cc) and board[rr, cc] == pawn:
                 return True
 
         # --- Knight attacks ---
         for dr, dc in DIRS['N']:
             rr, cc = r + dr, c + dc
-            if in_bounds(rr, cc) and board[rr][cc] == ('N' if sd == 'w' else 'n'):
+            if in_bounds(rr, cc) and board[rr, cc] == ('N' if sd == 'w' else 'n'):
                 return True
 
         # --- King attacks ---
         for dr, dc in DIRS['K']:
             rr, cc = r + dr, c + dc
-            if in_bounds(rr, cc) and board[rr][cc] == ('K' if sd == 'w' else 'k'):
+            if in_bounds(rr, cc) and board[rr, cc] == ('K' if sd == 'w' else 'k'):
                 return True
 
         # --- Sliding attacks ---
@@ -204,7 +204,7 @@ def attacked(pos, sq, sd) -> bool:
                     cc += dc
                     if not in_bounds(rr, cc):
                         break
-                    sq_piece = board[rr][cc]
+                    sq_piece = board[rr, cc]
                     if sq_piece == '.':
                         continue
                     if sq_piece == p:
@@ -228,7 +228,7 @@ def check(pos) -> bool: # TODO: Test
     king_sq = None
     for r in range(8):
         for c in range(8):
-            if pos.board[r][c] == ('K' if is_white else 'k'):
+            if pos.board[r, c] == ('K' if is_white else 'k'):
                 king_sq = (r, c)
                 break
         if king_sq:
@@ -247,12 +247,12 @@ def capture(pos, move) -> bool: # TODO: Test
     :return: Description
     :rtype: bool
     """
-    target_square = pos.board[move.dst[0]][move.dst[1]]
-    if target_square != '.':
+    target = pos.board[move.dst]
+    if target != '.':
         return True
     
     # En passant: pawn moves diagonally to empty square
-    piece = pos.board[move.src[0]][move.src[1]]
+    piece = pos.board[move.src]
     if piece.lower() == 'p':  # Is it a pawn?
         # Diagonal move (x changes)
         if move.src[1] != move.dst[1]:
