@@ -1,7 +1,7 @@
 import random as random
 import numpy as np
 from numpy.typing import NDArray
-from utils import DIRECTIONS, SLIDING, legal
+from utils import DIRECTIONS, SLIDING, attacked
 
 # GAME LOGIC
 # Move representation
@@ -15,7 +15,7 @@ class Move:
 
 
 class Undo:
-    __slots__ = ('move', 'captured', 'wc', 'bc', 'ep', 'sd', 'ep_sq')
+    __slots__ = ('move', 'captured', 'wc', 'bc', 'ep', 'sd', 'ep_sq', 'castle')
 
     def __init__(self, move: Move, wc: tuple[int, int], bc: tuple[int, int], ep: tuple[int, int] | None, sd: str):
         self.move = move
@@ -26,10 +26,12 @@ class Undo:
 
         self.captured: str | None = None
         self.ep_sq: tuple[int, int] | None = None
+        self.castle: None | int = None   # 0 for queen-side, 1 for king-side, None for non-castling move
+        # Note: to put castle squares in the future to handle chess960 castling
 
 
 class Position:
-    __slots__ = ('board', 'score', 'wc', 'bc', 'ep', 'sd', 'history')
+    __slots__ = ('board', 'wc', 'bc', 'ep', 'sd', 'score', 'history')
 
     # A state of a chess game
     # board   -- the current board state as a numpy array. !IMPOTANT - board is a cartesian grid
@@ -61,12 +63,11 @@ class Position:
         )
 
     # Return legal moves for at a given position.
-    def gen_moves(self) -> list[Move]:
+    def gen_moves(self) -> list[Move]: # TODO: Test
         DIRS = DIRECTIONS  # local alias
         in_bounds = lambda r, c: 0 <= r < 8 and 0 <= c < 8
 
         moves: list[Move] = []
-        append = lambda move: moves.append(move) if legal(self, move) else None # TODO: remove legal checking from move gen
 
         for r0 in range(8):
             row = self.board[r0]  # local row ref
@@ -103,14 +104,14 @@ class Position:
                         if in_bounds(r, c) and self.board[r, c] == '.':
                             if r == promo_row:
                                 for promo in ("Q","R","B","N"):
-                                    append(Move((r0, c0), (r, c), promo))
+                                    moves.append(Move((r0, c0), (r, c), promo))
                             else:
-                                append(Move((r0, c0), (r, c), ""))
+                                moves.append(Move((r0, c0), (r, c), ""))
                             # double step
                             if r0 == start_row:
                                 rr = r + dr; cc = c + dc
                                 if in_bounds(rr, cc) and self.board[rr, cc] == '.':
-                                    append(Move((r0, c0), (rr, cc), ""))
+                                    moves.append(Move((r0, c0), (rr, cc), ""))
                     # captures
                     for dr, dc in cap_dirs:
                         r = r0 + dr; c = c0 + dc
@@ -119,12 +120,12 @@ class Position:
                             if target != '.' and (target.isupper() != is_white):
                                 if r == promo_row:
                                     for promo in ("Q","R","B","N"):
-                                        append(Move((r0, c0), (r, c), promo))
+                                        moves.append(Move((r0, c0), (r, c), promo))
                                 else:
-                                    append(Move((r0, c0), (r, c), ""))
+                                    moves.append(Move((r0, c0), (r, c), ""))
                             # En passant capture
                             elif self.ep is not None and (r, c) == self.ep:
-                                append(Move((r0, c0), (r, c), ""))  # en passant move
+                                moves.append(Move((r0, c0), (r, c), ""))  # en passant move
                     # done with this pawn
                     continue
 
@@ -140,31 +141,34 @@ class Position:
                             break
                         target = self.board[r, c]
                         if target == '.':
-                            append(Move((r0, c0), (r, c), ""))
+                            moves.append(Move((r0, c0), (r, c), ""))
                             if not sliding:
                                 break
                         else:
                             # enemy?
                             if target.isupper() != is_white:
-                                append(Move((r0, c0), (r, c), ""))
+                                moves.append(Move((r0, c0), (r, c), ""))
                             break
 
                 # --- Castling ---
                 if pu == 'K':
                     back_row = 0 if is_white else 7
                     rights = self.wc if is_white else self.bc
+                    opponent = 'b' if is_white else 'w'
 
                     # King-side castling
                     if rights[1]:  # king-side right available
                         if self.board[back_row, 5] == '.' and self.board[back_row, 6] == '.':
-                            append(Move((r0, c0), (back_row, 6), ""))
+                            # King can't pass through check
+                            if not attacked(self, (back_row, c0), opponent) and not attacked(self, (back_row, 5), opponent):
+                                moves.append(Move((r0, c0), (back_row, 6), ""))
 
                     # Queen-side castling
                     if rights[0]:  # queen-side right available
-                        if (self.board[back_row, 1] == '.' and
-                            self.board[back_row, 2] == '.' and
-                            self.board[back_row, 3] == '.'):
-                            append(Move((r0, c0), (back_row, 2), ""))
+                        if (self.board[back_row, 1] == '.' and self.board[back_row, 2] == '.' and self.board[back_row, 3] == '.'):
+                            # King can't pass through check
+                            if not attacked(self, (back_row, c0), opponent) and not attacked(self, (back_row, 3), opponent):
+                                moves.append(Move((r0, c0), (back_row, 2), ""))
 
         return moves
     
@@ -295,9 +299,13 @@ class Position:
         # --- Handle castling (moving rook as well) ---
         if piece.upper() == 'K' and abs(c1 - c0) == 2:
             if c1 == 6:  # Kingside castling
+                undo.castle = 1 # Update undo castle flag
+
                 self.board[r1, 5] = 'R' if is_white else 'r'
                 self.board[r1, 7] = '.'
-            elif c1 == 2:  # Queenside castling
+            else:  # Queenside castling
+                undo.castle = 0 # Update undo castle flag
+
                 self.board[r1, 3] = 'R' if is_white else 'r'
                 self.board[r1, 0] = '.'
 
@@ -337,7 +345,7 @@ class Position:
 
         return self
     
-    def pop(self):
+    def pop(self): # TODO: Test
         undo = self.history.pop()
 
         move = undo.move
@@ -362,6 +370,17 @@ class Position:
             piece = self.board[r1, c1]
             self.board[r1, c1] = '.'
             self.board[r0, c0] = piece
+            
+            # --- Undo castling rook move ---
+            if undo.castle is not None:
+                if undo.castle == 1:  # kingside
+                    rook = self.board[r0, 5]
+                    self.board[r0, 5] = '.'
+                    self.board[r0, 7] = rook
+                else:  # queenside
+                    rook = self.board[r0, 3]
+                    self.board[r0, 3] = '.'
+                    self.board[r0, 0] = rook
 
         # --- Restore captured piece ---
         if undo.captured:
@@ -372,7 +391,21 @@ class Position:
                 self.board[r1, c1] = undo.captured
         
         return self
-    
+
+    def in_check(self, sd: str) -> bool: # TODO: Test
+        # IMPORTANT:
+        # in_check(sd) checks whether side's king is attacked.
+        # This must NOT depend on position.sd, because legality checks in search occur AFTER push(), when position.sd has already flipped.
+        king = 'K' if sd == 'w' else 'k'
+
+        for r in range(8):
+            for c in range(8):
+                if self.board[r, c] == king:
+                    by_side=('b' if sd == 'w' else 'w')
+                    return attacked(self, (r, c), by_side)
+
+        return False
+
     def make_uci_move(self, uci_move: str):
         file_from = ord(uci_move[0]) - ord('a')
         rank_from = int(uci_move[1]) - 1

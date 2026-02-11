@@ -1,6 +1,6 @@
 from dorse import Position
 import utils
-from eval import evaluate
+from evaluate import evaluate
 
 def test_evaluate_0():
     board, wc, bc, ep, sd = utils.parse_fen("8/8/8/8/8/8/8/8 w - - 0 1")

@@ -7,17 +7,15 @@
 # search.py
 
 from dorse import Position, Move
-from utils import check
-from eval import evaluate
+from evaluate import evaluate
 
 INF = 10**9
-MATE = INF - 1
 
 def search(position: 'Position', depth: int | None = None) -> Move | None: # TODO: Test
     """
     Search to find the best move.
     """
-    MAX_DEPTH = 3
+    MAX_DEPTH = 4
     if depth is None:
         depth = MAX_DEPTH # Default depth
 
@@ -28,14 +26,18 @@ def search(position: 'Position', depth: int | None = None) -> Move | None: # TOD
     moves = position.gen_moves()
 
     for move in moves:
+        mover = position.sd
         position.push(move)
+        if position.in_check(mover): # Illegal move, skip
+            position.pop()
+            continue
         score = -alphabeta(position, -beta, -alpha, depth-1)
         position.pop()
 
         if score > alpha:
             alpha = score
             best_move = move
-
+            
     return best_move
 
 def alphabeta(position: 'Position', alpha: int, beta: int, depth: int) -> int: # TODO: Test
@@ -47,14 +49,12 @@ def alphabeta(position: 'Position', alpha: int, beta: int, depth: int) -> int: #
 
     moves = position.gen_moves() # TODO: Order moves
 
-    if not moves:
-        if check(position):
-            return -MATE + depth # Checkmate
-        else:
-            return 0 # stalemate
-
     for move in moves:
+        mover = position.sd
         position.push(move)
+        if position.in_check(mover): # Illegal move, skip
+            position.pop()
+            continue
         score = -alphabeta(position, -beta, -alpha, depth-1)
         position.pop()
 
@@ -66,20 +66,24 @@ def alphabeta(position: 'Position', alpha: int, beta: int, depth: int) -> int: #
     return alpha
 
 def quiescence(position: Position, alpha: int, beta: int, qs_depth: int = 0) -> int: # TODO: Test 
-    MAX_QS_DEPTH = 3
+    MAX_QSDEPTH = 3
 
     static_eval = evaluate(position)
     if static_eval >= beta:
         return beta
     if static_eval > alpha:
         alpha = static_eval
-    if qs_depth >= MAX_QS_DEPTH:
+    if qs_depth >= MAX_QSDEPTH:
         return alpha
     
     moves = position.gen_captures()
 
     for move in moves:
+        mover = position.sd
         position.push(move)
+        if position.in_check(mover): # Illegal move, skip
+            position.pop()
+            continue
         score = -quiescence(position, -beta, -alpha, qs_depth+1)
         position.pop()
 
@@ -89,6 +93,3 @@ def quiescence(position: Position, alpha: int, beta: int, qs_depth: int = 0) -> 
             alpha = score
                 
     return alpha
-
-def order(position: Position, moves: list[Move]) -> list[Move]:
-    return [] # TODO: Implement move ordering
