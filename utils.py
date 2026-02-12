@@ -21,9 +21,8 @@ DIRECTIONS = {
     "p_capture":  [(-1, 1), (-1, -1)],  # Black pawn captures diagonally down
 }
 
-# Sliding vs non-sliding
+# Sliding pieces
 SLIDING = {"B", "R", "Q"}
-
 
 # Parse FEN string into board representation and game state
 def parse_fen(fen: str) -> tuple[NDArray[np.str_], tuple[int, int], tuple[int, int], tuple[int, int] | None, str]:
@@ -69,57 +68,51 @@ def parse_fen(fen: str) -> tuple[NDArray[np.str_], tuple[int, int], tuple[int, i
 
     return board, wc, bc, ep, sd
 
+# Check if square is attacked by opponent's pieces
 def attacked(pos, sq, sd) -> bool:
     r, c = sq
     board = pos.board
-    in_bounds = lambda r, c: 0 <= r < 8 and 0 <= c < 8
-
+    
     # --- Precompute piece symbols and directions ---
     if sd == 'w':
         pawn_dirs = DIRECTIONS['p_capture']
-        pawn = 'P'
-        knight = 'N'
-        king = 'K'
+        pawn, knight, king = 'P', 'N', 'K'
         sliders = {p: DIRECTIONS[p] for p in SLIDING}
     else:
         pawn_dirs = DIRECTIONS['P_capture']
-        pawn = 'p'
-        knight = 'n'
-        king = 'k'
+        pawn, knight, king = 'p', 'n', 'k'
         sliders = {p.lower(): DIRECTIONS[p] for p in SLIDING}
-
-    # --- Pawn attacks ---
-    for dr, dc in pawn_dirs:
-        rr, cc = r + dr, c + dc
-        if in_bounds(rr, cc) and board[rr, cc] == pawn:
-            return True
-
-    # --- Knight attacks ---
-    for dr, dc in DIRECTIONS['N']:
-        rr, cc = r + dr, c + dc
-        if in_bounds(rr, cc) and board[rr, cc] == knight:
-            return True
-
-    # --- King attacks ---
-    for dr, dc in DIRECTIONS['K']:
-        rr, cc = r + dr, c + dc
-        if in_bounds(rr, cc) and board[rr, cc] == king:
-            return True
-
+    
     # --- Sliding attacks ---
     for piece, dirs in sliders.items():
         for dr, dc in dirs:
-            rr, cc = r, c
-            while True:
-                rr += dr
-                cc += dc
-                if not in_bounds(rr, cc):
-                    break
+            rr, cc = r + dr, c + dc
+            while 0 <= rr < 8 and 0 <= cc < 8:
                 sq_piece = board[rr, cc]
                 if sq_piece == '.':
+                    rr += dr
+                    cc += dc
                     continue
                 if sq_piece == piece:
                     return True
                 break  # blocked by another piece
 
+    # --- Pawn attacks ---
+    for dr, dc in pawn_dirs:
+        rr, cc = r + dr, c + dc
+        if 0 <= rr < 8 and 0 <= cc < 8 and board[rr, cc] == pawn:
+            return True
+    
+    # --- Knight attacks ---
+    for dr, dc in DIRECTIONS['N']:
+        rr, cc = r + dr, c + dc
+        if 0 <= rr < 8 and 0 <= cc < 8 and board[rr, cc] == knight:
+            return True
+    
+    # --- King attacks ---
+    for dr, dc in DIRECTIONS['K']:
+        rr, cc = r + dr, c + dc
+        if 0 <= rr < 8 and 0 <= cc < 8 and board[rr, cc] == king:
+            return True
+    
     return False

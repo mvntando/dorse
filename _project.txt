@@ -20,3 +20,5 @@
 
 || Testing:
     to print:
+
+- move ordering, iterative deepening, tt table (zobrist hash), improve move ordering with tt best move

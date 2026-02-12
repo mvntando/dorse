@@ -72,10 +72,11 @@ def test_attacked_black():
     assert attacked(pos, coord('a1'), 'b') is False
 
 def test_attacked_other():
-    board, wc, bc, ep, sd = parse_fen("3q1bn1/8/8/8/8/8/8/8 w - - 0 1") # queen on e4
+    board, wc, bc, ep, sd = parse_fen("R2q1bn1/8/8/8/8/8/8/8 w - - 0 1") # queen on e4
     pos = dorse.Position(board, wc, bc, ep, sd)
 
     assert attacked(pos, coord('b6'), 'b') is True
-    assert attacked(pos, coord('a3'), 'b') is False
+    assert attacked(pos, coord('a3'), 'b') is True
     assert attacked(pos, coord('h6'), 'b') is True
     assert attacked(pos, coord('e6'), 'b') is False
+    assert attacked(pos, coord('a7'), 'b') is False

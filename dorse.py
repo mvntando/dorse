@@ -52,25 +52,15 @@ class Position:
         self.score: int | None = None  # Reserved for future incremental evaluation
         self.history: list[Undo] = []
 
-    # DEBUG: remove later
-    def copy(self) -> 'Position':
-        return Position(
-            self.board.copy(),
-            self.wc,
-            self.bc,
-            None if self.ep is None else self.ep,
-            self.sd,
-        )
-
     # Return legal moves for at a given position.
     def gen_moves(self) -> list[Move]: # TODO: Test
-        DIRS = DIRECTIONS  # local alias
+        DIRS = DIRECTIONS # local alias
         in_bounds = lambda r, c: 0 <= r < 8 and 0 <= c < 8
 
         moves: list[Move] = []
 
         for r0 in range(8):
-            row = self.board[r0]  # local row ref
+            row = self.board[r0] # local row ref
             for c0 in range(8):
                 piece = row[c0]
                 if piece == '.':
@@ -157,14 +147,14 @@ class Position:
                     opponent = 'b' if is_white else 'w'
 
                     # King-side castling
-                    if rights[1]:  # king-side right available
+                    if rights[1]: # king-side right available
                         if self.board[back_row, 5] == '.' and self.board[back_row, 6] == '.':
                             # King can't pass through check
                             if not attacked(self, (back_row, c0), opponent) and not attacked(self, (back_row, 5), opponent):
                                 moves.append(Move((r0, c0), (back_row, 6), ""))
 
                     # Queen-side castling
-                    if rights[0]:  # queen-side right available
+                    if rights[0]: # queen-side right available
                         if (self.board[back_row, 1] == '.' and self.board[back_row, 2] == '.' and self.board[back_row, 3] == '.'):
                             # King can't pass through check
                             if not attacked(self, (back_row, c0), opponent) and not attacked(self, (back_row, 3), opponent):
@@ -180,12 +170,14 @@ class Position:
         moves: list[Move] = []
 
         for r0 in range(8):
+            row = self.board[r0]
             for c0 in range(8):
-                piece: str = self.board[r0, c0]
+                piece: str = row[c0]
                 if piece == '.':
                     continue
 
                 if self.sd == 'w':
+                    # Skip opponent pieces
                     if not piece.isupper():
                         continue
                 else:
@@ -195,17 +187,15 @@ class Position:
                 is_white = piece.isupper()
                 pu = piece.upper()
 
+                # --- Pawn logic ---
                 if pu == 'P':
                     cap_dirs = DIRS["P_capture"] if is_white else DIRS["p_capture"]
                     promo_row = 7 if is_white else 0
-
                     for dr, dc in cap_dirs:
                         r = r0 + dr; c = c0 + dc
                         if not in_bounds(r, c):
                             continue
-
                         target = self.board[r, c]
-
                         # normal capture
                         if target != '.' and target.isupper() != is_white:
                             if r == promo_row:
@@ -213,13 +203,12 @@ class Position:
                                     moves.append(Move((r0,c0),(r,c),promo))
                             else:
                                 moves.append(Move((r0,c0),(r,c),""))
-
                         # en passant
                         elif self.ep is not None and (r, c) == self.ep:
                             moves.append(Move((r0,c0),(r,c),""))
-
                     continue
 
+                # --- Non-pawns ---
                 dirs = DIRS[pu]
                 sliding = pu in SLIDING
 
@@ -235,11 +224,102 @@ class Position:
                             if not sliding:
                                 break
                             continue
-
                         if target.isupper() != is_white:
                             moves.append(Move((r0,c0),(r,c),""))
                         break
         
+        return moves
+    
+    # Return pseudo-legal quiet moves at a given position.
+    def gen_quiets(self) -> list[Move]:
+        DIRS = DIRECTIONS
+        in_bounds = lambda r, c: 0 <= r < 8 and 0 <= c < 8
+
+        moves: list[Move] = []
+
+        for r0 in range(8):
+            row = self.board[r0]
+            for c0 in range(8):
+                piece = row[c0]
+                if piece == '.':
+                    continue
+
+                if self.sd == 'w':
+                    if not piece.isupper():
+                        continue
+                else:
+                    if not piece.islower():
+                        continue
+
+                is_white = piece.isupper()
+                pu = piece.upper()
+
+                # --- Pawn logic ---
+                if pu == 'P':
+                    if is_white:
+                        fwd_dirs = DIRS["P"]
+                        start_row = 1
+                        promo_row = 7
+                    else:
+                        fwd_dirs = DIRS["p"]
+                        start_row = 6
+                        promo_row = 0
+
+                    # forward moves only
+                    for dr, dc in fwd_dirs:
+                        r = r0 + dr; c = c0 + dc
+                        if in_bounds(r, c) and self.board[r, c] == '.':
+                            if r == promo_row:
+                                for promo in ("Q","R","B","N"):
+                                    moves.append(Move((r0, c0), (r, c), promo))
+                            else:
+                                moves.append(Move((r0, c0), (r, c), ""))
+
+                            # double step
+                            if r0 == start_row:
+                                rr = r + dr; cc = c + dc
+                                if in_bounds(rr, cc) and self.board[rr, cc] == '.':
+                                    moves.append(Move((r0, c0), (rr, cc), ""))
+
+                    continue
+
+                # --- Non-pawns ---
+                dirs = DIRS[pu]
+                sliding = pu in SLIDING
+
+                for dr, dc in dirs:
+                    r = r0; c = c0
+                    while True:
+                        r += dr; c += dc
+                        if not in_bounds(r, c):
+                            break
+
+                        target = self.board[r, c]
+                        if target == '.':
+                            moves.append(Move((r0, c0), (r, c), ""))
+                            if not sliding:
+                                break
+                        else:
+                            break # stop on first occupied square
+
+                # --- Castling ---
+                if pu == 'K':
+                    back_row = 0 if is_white else 7
+                    rights = self.wc if is_white else self.bc
+                    opponent = 'b' if is_white else 'w'
+
+                    # King-side castling
+                    if rights[1]:
+                        if self.board[back_row, 5] == '.' and self.board[back_row, 6] == '.':
+                            if not attacked(self, (back_row, c0), opponent) and not attacked(self, (back_row, 5), opponent):
+                                moves.append(Move((r0, c0), (back_row, 6), ""))
+
+                    # Queen-side castling
+                    if rights[0]:
+                        if (self.board[back_row, 1] == '.' and self.board[back_row, 2] == '.' and self.board[back_row, 3] == '.'):
+                            if not attacked(self, (back_row, c0), opponent) and not attacked(self, (back_row, 3), opponent):
+                                moves.append(Move((r0, c0), (back_row, 2), ""))
+
         return moves
 
     def push(self, move: Move):

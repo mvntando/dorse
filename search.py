@@ -9,7 +9,8 @@
 from dorse import Position, Move
 from evaluate import evaluate
 
-INF = 10**9
+INF = 1000000
+MATE = 20000
 
 def search(position: 'Position', depth: int | None = None) -> Move | None: # TODO: Test
     """
@@ -34,7 +35,7 @@ def search(position: 'Position', depth: int | None = None) -> Move | None: # TOD
         score = -alphabeta(position, -beta, -alpha, depth-1)
         position.pop()
 
-        if score > alpha:
+        if best_move is None or score > alpha:
             alpha = score
             best_move = move
             
@@ -48,6 +49,7 @@ def alphabeta(position: 'Position', alpha: int, beta: int, depth: int) -> int: #
         return quiescence(position, alpha, beta)
 
     moves = position.gen_moves() # TODO: Order moves
+    legal_found = False
 
     for move in moves:
         mover = position.sd
@@ -55,17 +57,24 @@ def alphabeta(position: 'Position', alpha: int, beta: int, depth: int) -> int: #
         if position.in_check(mover): # Illegal move, skip
             position.pop()
             continue
+        legal_found = True
         score = -alphabeta(position, -beta, -alpha, depth-1)
         position.pop()
 
         if score >= beta:
-            return beta
+            return score
         if score > alpha:
             alpha = score
 
+        if not legal_found:
+            if position.in_check(position.sd):
+                return -MATE-depth # Checkmate (change to ply later)
+            else:
+                return 0 # stalemate
+
     return alpha
 
-def quiescence(position: Position, alpha: int, beta: int, qs_depth: int = 0) -> int: # TODO: Test 
+def quiescence(position: Position, alpha: int, beta: int, qs_depth: int = 0) -> int: # TODO: Test
     MAX_QSDEPTH = 3
 
     static_eval = evaluate(position)
