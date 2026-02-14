@@ -37,7 +37,7 @@ def uci_loop():
 
         elif line == "ucinewgame":
             # Always start fresh
-            position = Position(INIT_BOARD.copy(), WC, BC, EP, SD)
+            position = Position([row[:] for row in INIT_BOARD], WC, BC, EP, SD)
 
         elif line.startswith("position"):
             position = parse_position(line)
@@ -77,7 +77,7 @@ def parse_position(line):
     tokens = line.split()
 
     if tokens[1] == "startpos":
-        pos = Position(INIT_BOARD.copy(), WC, BC, EP, SD)
+        pos = Position([row[:] for row in INIT_BOARD], WC, BC, EP, SD)
         idx = 2
     elif tokens[1] == "fen":
         fen = " ".join(tokens[2:8])

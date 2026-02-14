@@ -1,6 +1,3 @@
-import numpy as np
-from numpy.typing import NDArray
-
 # Initial chess board setup
 START_POS = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
@@ -25,39 +22,32 @@ DIRECTIONS = {
 SLIDING = {"B", "R", "Q"}
 
 # Parse FEN string into board representation and game state
-def parse_fen(fen: str) -> tuple[NDArray[np.str_], tuple[int, int], tuple[int, int], tuple[int, int] | None, str]:
-
+def parse_fen(fen: str) -> tuple[list[list[str]], tuple[int, int], tuple[int, int], tuple[int, int] | None, str]:
     parts = fen.split()
     if len(parts) < 4:
         raise ValueError("Invalid FEN")
-
     board_part, side, castling, ep = parts[:4]
-
-    board: NDArray[np.str_] = np.full((8, 8), '.', dtype='U1')
-
+    board: list[list[str]] = []
     # FEN ranks: 8 → 1
     for fen_rank, row in enumerate(board_part.split('/')):
+        board.append(['.'] * 8)  # <-- Create the row first
         file = 0
         for ch in row:
             if ch.isdigit():
                 file += int(ch)
             else:
-                board[fen_rank, file] = ch
+                board[fen_rank][file] = ch
                 file += 1
         # optional safety check (can remove if you want zero overhead)
         if file != 8:
             raise ValueError("Invalid FEN rank")
-
-    # Flip so board[0, 0] == a1 (white side) (cartesian coordinates)
-    board = np.flipud(board)
-
+    # Flip so board[0][0] == a1 (white side) (cartesian coordinates)
+    board = board[::-1]
     # Side to move: keep as 'w' / 'b'
     sd = side
-
     # Castling rights
     wc = (1 if 'Q' in castling else 0, 1 if 'K' in castling else 0)
     bc = (1 if 'q' in castling else 0, 1 if 'k' in castling else 0)
-
     # En passant
     if ep == '-':
         ep = None
@@ -65,7 +55,6 @@ def parse_fen(fen: str) -> tuple[NDArray[np.str_], tuple[int, int], tuple[int, i
         file = ord(ep[0]) - ord('a')
         rank = int(ep[1]) - 1   # rank 1 → index 0
         ep = (rank, file)
-
     return board, wc, bc, ep, sd
 
 # Check if square is attacked by opponent's pieces
@@ -88,7 +77,7 @@ def attacked(pos, sq, sd) -> bool:
         for dr, dc in dirs:
             rr, cc = r + dr, c + dc
             while 0 <= rr < 8 and 0 <= cc < 8:
-                sq_piece = board[rr, cc]
+                sq_piece = board[rr][cc]
                 if sq_piece == '.':
                     rr += dr
                     cc += dc
@@ -100,19 +89,19 @@ def attacked(pos, sq, sd) -> bool:
     # --- Pawn attacks ---
     for dr, dc in pawn_dirs:
         rr, cc = r + dr, c + dc
-        if 0 <= rr < 8 and 0 <= cc < 8 and board[rr, cc] == pawn:
+        if 0 <= rr < 8 and 0 <= cc < 8 and board[rr][cc] == pawn:
             return True
     
     # --- Knight attacks ---
     for dr, dc in DIRECTIONS['N']:
         rr, cc = r + dr, c + dc
-        if 0 <= rr < 8 and 0 <= cc < 8 and board[rr, cc] == knight:
+        if 0 <= rr < 8 and 0 <= cc < 8 and board[rr][cc] == knight:
             return True
     
     # --- King attacks ---
     for dr, dc in DIRECTIONS['K']:
         rr, cc = r + dr, c + dc
-        if 0 <= rr < 8 and 0 <= cc < 8 and board[rr, cc] == king:
+        if 0 <= rr < 8 and 0 <= cc < 8 and board[rr][cc] == king:
             return True
     
     return False

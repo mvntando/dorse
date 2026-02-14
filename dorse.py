@@ -1,6 +1,4 @@
 import random as random
-import numpy as np
-from numpy.typing import NDArray
 from utils import DIRECTIONS, SLIDING, attacked
 
 # GAME LOGIC
@@ -42,7 +40,7 @@ class Position:
     # score   -- the board evaluation (none unless incremental evaluation is enabled)
     # history -- stack of Undo objects for undoing moves
 
-    def __init__(self, board: NDArray[np.str_], wc: tuple[int, int], bc: tuple[int, int], ep: tuple[int, int] | None, sd: str):
+    def __init__(self, board: list[list[str]], wc: tuple[int, int], bc: tuple[int, int], ep: tuple[int, int] | None, sd: str):
         self.board = board
         self.wc = wc
         self.bc = bc
@@ -52,7 +50,29 @@ class Position:
         self.score: int | None = None  # Reserved for future incremental evaluation
         self.history: list[Undo] = []
 
+    def __eq__(self, other) -> bool:
+        if not isinstance(other, Position):
+            return False
+        return (
+            all(r1 == r2 for r1, r2 in zip(self.board, other.board)) and
+            self.wc == other.wc and
+            self.bc == other.bc and
+            self.ep == other.ep and
+            self.sd == other.sd
+        )
+
+    # DEBUG: remove later
+    def copy(self) -> 'Position':
+        return Position(
+            [row[:] for row in self.board], # Deep copy of board
+            self.wc,
+            self.bc,
+            None if self.ep is None else self.ep,
+            self.sd,
+        )
+
     # Return legal moves for at a given position.
+    # gen_captures() + gen_quiets() but a little faster
     def gen_moves(self) -> list[Move]: # TODO: Test
         DIRS = DIRECTIONS # local alias
         in_bounds = lambda r, c: 0 <= r < 8 and 0 <= c < 8
@@ -91,7 +111,7 @@ class Position:
                     # forward moves
                     for dr, dc in fwd_dirs:
                         r = r0 + dr; c = c0 + dc
-                        if in_bounds(r, c) and self.board[r, c] == '.':
+                        if in_bounds(r, c) and self.board[r][c] == '.':
                             if r == promo_row:
                                 for promo in ("Q","R","B","N"):
                                     moves.append(Move((r0, c0), (r, c), promo))
@@ -100,13 +120,13 @@ class Position:
                             # double step
                             if r0 == start_row:
                                 rr = r + dr; cc = c + dc
-                                if in_bounds(rr, cc) and self.board[rr, cc] == '.':
+                                if in_bounds(rr, cc) and self.board[rr][cc] == '.':
                                     moves.append(Move((r0, c0), (rr, cc), ""))
                     # captures
                     for dr, dc in cap_dirs:
                         r = r0 + dr; c = c0 + dc
                         if in_bounds(r, c):
-                            target = self.board[r, c]
+                            target = self.board[r][c]
                             if target != '.' and (target.isupper() != is_white):
                                 if r == promo_row:
                                     for promo in ("Q","R","B","N"):
@@ -129,7 +149,7 @@ class Position:
                         r += dr; c += dc
                         if not in_bounds(r, c):
                             break
-                        target = self.board[r, c]
+                        target = self.board[r][c]
                         if target == '.':
                             moves.append(Move((r0, c0), (r, c), ""))
                             if not sliding:
@@ -148,14 +168,14 @@ class Position:
 
                     # King-side castling
                     if rights[1]: # king-side right available
-                        if self.board[back_row, 5] == '.' and self.board[back_row, 6] == '.':
+                        if self.board[back_row][5] == '.' and self.board[back_row][6] == '.':
                             # King can't pass through check
                             if not attacked(self, (back_row, c0), opponent) and not attacked(self, (back_row, 5), opponent):
                                 moves.append(Move((r0, c0), (back_row, 6), ""))
 
                     # Queen-side castling
                     if rights[0]: # queen-side right available
-                        if (self.board[back_row, 1] == '.' and self.board[back_row, 2] == '.' and self.board[back_row, 3] == '.'):
+                        if (self.board[back_row][1] == '.' and self.board[back_row][2] == '.' and self.board[back_row][3] == '.'):
                             # King can't pass through check
                             if not attacked(self, (back_row, c0), opponent) and not attacked(self, (back_row, 3), opponent):
                                 moves.append(Move((r0, c0), (back_row, 2), ""))
@@ -195,7 +215,7 @@ class Position:
                         r = r0 + dr; c = c0 + dc
                         if not in_bounds(r, c):
                             continue
-                        target = self.board[r, c]
+                        target = self.board[r][c]
                         # normal capture
                         if target != '.' and target.isupper() != is_white:
                             if r == promo_row:
@@ -219,7 +239,7 @@ class Position:
                         if not in_bounds(r, c):
                             break
 
-                        target = self.board[r, c]
+                        target = self.board[r][c]
                         if target == '.':
                             if not sliding:
                                 break
@@ -231,7 +251,7 @@ class Position:
         return moves
     
     # Return pseudo-legal quiet moves at a given position.
-    def gen_quiets(self) -> list[Move]:
+    def gen_quiets(self) -> list[Move]: # TODO: Test
         DIRS = DIRECTIONS
         in_bounds = lambda r, c: 0 <= r < 8 and 0 <= c < 8
 
@@ -268,7 +288,7 @@ class Position:
                     # forward moves only
                     for dr, dc in fwd_dirs:
                         r = r0 + dr; c = c0 + dc
-                        if in_bounds(r, c) and self.board[r, c] == '.':
+                        if in_bounds(r, c) and self.board[r][c] == '.':
                             if r == promo_row:
                                 for promo in ("Q","R","B","N"):
                                     moves.append(Move((r0, c0), (r, c), promo))
@@ -278,7 +298,7 @@ class Position:
                             # double step
                             if r0 == start_row:
                                 rr = r + dr; cc = c + dc
-                                if in_bounds(rr, cc) and self.board[rr, cc] == '.':
+                                if in_bounds(rr, cc) and self.board[rr][cc] == '.':
                                     moves.append(Move((r0, c0), (rr, cc), ""))
 
                     continue
@@ -294,7 +314,7 @@ class Position:
                         if not in_bounds(r, c):
                             break
 
-                        target = self.board[r, c]
+                        target = self.board[r][c]
                         if target == '.':
                             moves.append(Move((r0, c0), (r, c), ""))
                             if not sliding:
@@ -310,13 +330,13 @@ class Position:
 
                     # King-side castling
                     if rights[1]:
-                        if self.board[back_row, 5] == '.' and self.board[back_row, 6] == '.':
+                        if self.board[back_row][5] == '.' and self.board[back_row][6] == '.':
                             if not attacked(self, (back_row, c0), opponent) and not attacked(self, (back_row, 5), opponent):
                                 moves.append(Move((r0, c0), (back_row, 6), ""))
 
                     # Queen-side castling
                     if rights[0]:
-                        if (self.board[back_row, 1] == '.' and self.board[back_row, 2] == '.' and self.board[back_row, 3] == '.'):
+                        if (self.board[back_row][1] == '.' and self.board[back_row][2] == '.' and self.board[back_row][3] == '.'):
                             if not attacked(self, (back_row, c0), opponent) and not attacked(self, (back_row, 3), opponent):
                                 moves.append(Move((r0, c0), (back_row, 2), ""))
 
@@ -335,7 +355,7 @@ class Position:
         src, dst, promo = move.src, move.dst, move.promo
         r0, c0 = src
         r1, c1 = dst
-        piece = self.board[r0, c0]
+        piece = self.board[r0][c0]
 
         is_white = self.sd == 'w'
 
@@ -344,18 +364,18 @@ class Position:
             # --- Add captured piece for en passant to undo ---
             undo.captured = 'p' if is_white else 'P'
             undo.ep_sq = (r0, c1)
-            self.board[r0, c1] = '.'
+            self.board[r0][c1] = '.'
 
         else:
             # --- Normal capture ---
-            captured = self.board[r1, c1]
+            captured = self.board[r1][c1]
             undo.captured = captured if captured != '.' else None
 
         # --- Append undo to history ---
         self.history.append(undo)
         
         # --- Update castling rights if rook was captured ---
-        captured = self.board[r1, c1]  # destination square BEFORE the move
+        captured = self.board[r1][c1]  # destination square BEFORE the move
         if captured.upper() == 'R':
             if is_white:  # Captured black rook
                 if dst == (7, 0) and self.bc[0] != 0:  # a8 rook
@@ -369,25 +389,25 @@ class Position:
                     self.wc = (self.wc[0], 0)
 
         # --- Move piece ---
-        self.board[r1, c1] = piece
-        self.board[r0, c0] = '.'
+        self.board[r1][c1] = piece
+        self.board[r0][c0] = '.'
 
         # --- Handle promotion ---
         if promo:
-            self.board[r1, c1] = promo if is_white else promo.lower()
+            self.board[r1][c1] = promo if is_white else promo.lower()
 
         # --- Handle castling (moving rook as well) ---
         if piece.upper() == 'K' and abs(c1 - c0) == 2:
             if c1 == 6:  # Kingside castling
                 undo.castle = 1 # Update undo castle flag
 
-                self.board[r1, 5] = 'R' if is_white else 'r'
-                self.board[r1, 7] = '.'
+                self.board[r1][5] = 'R' if is_white else 'r'
+                self.board[r1][7] = '.'
             else:  # Queenside castling
                 undo.castle = 0 # Update undo castle flag
 
-                self.board[r1, 3] = 'R' if is_white else 'r'
-                self.board[r1, 0] = '.'
+                self.board[r1][3] = 'R' if is_white else 'r'
+                self.board[r1][0] = '.'
 
         # --- Update castling rights ---
         if piece.upper() == 'K':  # King moved → lose both rights
@@ -441,34 +461,34 @@ class Position:
         # --- Undo move ---
         if move.promo:
             # Remove promoted piece
-            self.board[r1, c1] = '.'
+            self.board[r1][c1] = '.'
 
             # Restore pawn using promo color
             pawn = 'P' if move.promo.isupper() else 'p'
-            self.board[r0, c0] = pawn
+            self.board[r0][c0] = pawn
         else:
-            piece = self.board[r1, c1]
-            self.board[r1, c1] = '.'
-            self.board[r0, c0] = piece
+            piece = self.board[r1][c1]
+            self.board[r1][c1] = '.'
+            self.board[r0][c0] = piece
             
             # --- Undo castling rook move ---
             if undo.castle is not None:
                 if undo.castle == 1:  # kingside
-                    rook = self.board[r0, 5]
-                    self.board[r0, 5] = '.'
-                    self.board[r0, 7] = rook
+                    rook = self.board[r0][5]
+                    self.board[r0][5] = '.'
+                    self.board[r0][7] = rook
                 else:  # queenside
-                    rook = self.board[r0, 3]
-                    self.board[r0, 3] = '.'
-                    self.board[r0, 0] = rook
+                    rook = self.board[r0][3]
+                    self.board[r0][3] = '.'
+                    self.board[r0][0] = rook
 
         # --- Restore captured piece ---
         if undo.captured:
             if undo.ep_sq:
                 er, ec = undo.ep_sq
-                self.board[er, ec] = undo.captured
+                self.board[er][ec] = undo.captured
             else:
-                self.board[r1, c1] = undo.captured
+                self.board[r1][c1] = undo.captured
         
         return self
 
@@ -480,7 +500,7 @@ class Position:
 
         for r in range(8):
             for c in range(8):
-                if self.board[r, c] == king:
+                if self.board[r][c] == king:
                     by_side=('b' if sd == 'w' else 'w')
                     return attacked(self, (r, c), by_side)
 

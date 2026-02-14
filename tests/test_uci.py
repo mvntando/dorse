@@ -66,8 +66,8 @@ def test_position_startpos_single_move():
 
     # Pawn moved from e2 to e4
     assert pos is not None
-    assert pos.board[1, 4] == '.'   # e2 empty
-    assert pos.board[3, 4] == 'P'   # e4 pawn
+    assert pos.board[1][4] == '.'   # e2 empty
+    assert pos.board[3][4] == 'P'   # e4 pawn
 
 def test_position_multiple_moves():
     pos = parse_position(
@@ -75,14 +75,14 @@ def test_position_multiple_moves():
     )
 
     assert pos is not None
-    assert pos.board[1, 4] == '.'   # e2
-    assert pos.board[3, 4] == 'P'   # e4
+    assert pos.board[1][4] == '.'   # e2
+    assert pos.board[3][4] == 'P'   # e4
 
-    assert pos.board[6, 4] == '.'   # e7
-    assert pos.board[4, 4] == 'p'   # e5
+    assert pos.board[6][4] == '.'   # e7
+    assert pos.board[4][4] == 'p'   # e5
 
-    assert pos.board[0, 6] == '.'   # g1
-    assert pos.board[2, 5] == 'N'   # f3
+    assert pos.board[0][6] == '.'   # g1
+    assert pos.board[2][5] == 'N'   # f3
 
 def test_position_side_multiple_moves():
     pos = parse_position(
@@ -97,8 +97,8 @@ def test_position_fen_with_moves():
     pos = parse_position(f"position fen {fen} moves e2e4")
 
     assert pos is not None
-    assert pos.board[1, 4] == '.'
-    assert pos.board[3, 4] == 'P'
+    assert pos.board[1][4] == '.'
+    assert pos.board[3][4] == 'P'
     
 def test_illegal_uci_move_raises():
     with pytest.raises(ValueError):

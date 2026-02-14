@@ -19,6 +19,7 @@
     remove gen_moves from uci loop
 
 || Testing:
-    to print:
+    to print use:
+    assert after == before, f""
 
 - move ordering, iterative deepening, tt table (zobrist hash), improve move ordering with tt best move

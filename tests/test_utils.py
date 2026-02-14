@@ -37,10 +37,10 @@ def test_parse_fen():
     assert b_castling == (1, 1)
     assert en_passant is None
     assert turn == 'w'
-    assert board[0, 0] == 'R'   # a1
-    assert board[0, 4] == 'K'   # e1
-    assert board[7, 0] == 'r'   # a8
-    assert board[7, 4] == 'k'   # e8
+    assert board[0][0] == 'R'   # a1
+    assert board[0][4] == 'K'   # e1
+    assert board[7][0] == 'r'   # a8
+    assert board[7][4] == 'k'   # e8
 
 def test_parse_fen_ep():
     fen = "rnbqkbnr/1pp1pppp/p7/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 1"
