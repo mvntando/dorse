@@ -85,7 +85,7 @@ def alphabeta(position: 'Position', alpha: int, beta: int, depth: int) -> int: #
         if score > alpha:
             alpha = score
 
-    # Mate / stalemate detection AFTER all moves
+    # Mate / stalemate detection after all moves
     if not legal_found:
         if position.in_check(position.sd):
             return -MATE-depth # mate TODO: change depth to ply
@@ -94,8 +94,11 @@ def alphabeta(position: 'Position', alpha: int, beta: int, depth: int) -> int: #
 
     return alpha
 
+MAX_QSDEPTH = 4
 def quiescence(position: Position, alpha: int, beta: int, qs_depth: int = 0) -> int: # TODO: Test
-    MAX_QSDEPTH = 4
+    """
+    Quiescence search to evaluate "quiet" positions and avoid horizon effect.
+    """    
 
     score = evaluate(position)
     if score >= beta:

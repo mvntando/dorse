@@ -240,7 +240,7 @@ def test_pop():
 def test_pop_full():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
     pos = Position(board, wc, bc, ep, sd)
-    before = pos.copy()
+    orig_pos = pos.copy()
 
     moves = pos.gen_moves()
     assert moves, "No moves generated"
@@ -249,7 +249,7 @@ def test_pop_full():
         pos.push(move)
         pos.pop()
         after = pos.copy()
-        assert after == before, f"Position corrupted by move: {move_str(move)}"
+        assert after == orig_pos, f"Position corrupted by move: {move_str(move)}"
 
 def test_pop_en_passant():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/1pp1pppp/p7/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 1")
@@ -276,6 +276,36 @@ def test_pop_castling():
     pos = pos.pop()
 
     assert orig_pos == pos
+
+
+# IN_CHECK TESTS
+def test_in_check_start():
+    board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
+    pos = Position(board, wc, bc, ep, sd)
+
+    assert not pos.in_check('w')
+    assert not pos.in_check('b')
+
+def test_in_check_white_true():
+    board, wc, bc, ep, sd = utils.parse_fen("rnb1k1nr/pppp1ppp/5q2/4p3/4P3/P6N/1PPPQbPP/RNB1KB1R w KQkq - 0 1")
+    pos = Position(board, wc, bc, ep, sd)
+
+    assert pos.in_check('w')
+    assert not pos.in_check('b')
+
+def test_in_check_black_true():
+    board, wc, bc, ep, sd = utils.parse_fen("r1b1kbnr/ppppqBpp/2n5/4p3/4P3/5Q2/PPPP1PPP/RNB1K1NR b KQkq - 0 1")
+    pos = Position(board, wc, bc, ep, sd)
+
+    assert pos.in_check('b')
+    assert not pos.in_check('w')
+
+def test_in_check_both():
+    board, wc, bc, ep, sd = utils.parse_fen("4k3/8/5N2/8/8/3n4/8/4K3 w - - 0 1")
+    pos = Position(board, wc, bc, ep, sd)
+
+    assert pos.in_check('w')
+    assert pos.in_check('b')
 
 
 # UCI_MOVE TESTS

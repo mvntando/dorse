@@ -58,12 +58,12 @@ def parse_fen(fen: str) -> tuple[list[list[str]], tuple[int, int], tuple[int, in
     return board, wc, bc, ep, sd
 
 # Check if square is attacked by opponent's pieces
-def attacked(pos, sq, sd) -> bool:
+def attacked(pos, sq, opponent) -> bool:
     r, c = sq
     board = pos.board
     
     # --- Precompute piece symbols and directions ---
-    if sd == 'w':
+    if opponent == 'w':
         pawn_dirs = DIRECTIONS['p_capture']
         pawn, knight, king = 'P', 'N', 'K'
         sliders = {p: DIRECTIONS[p] for p in SLIDING}

@@ -1,4 +1,4 @@
-from dorse import Move
+from dorse import Position, Move
 
 # Convert a position to algebraic notation
 def square(sq: tuple[int, int]) -> str:
@@ -30,4 +30,11 @@ def coord(s: str) -> tuple[int, int]:
 # Convert a Move to UCI string
 def move_str(move: Move) -> str:
     return square(move.src) + square(move.dst) + move.promo
+
+# Print the board in a human-readable format
+def print_position(pos: Position) -> None:
+    board = pos.board
+    for rank in reversed(board):
+        print(' '.join(rank))
+    print(f"sd: {pos.sd}, wk: {pos.wk}, bk: {pos.bk}")
 
