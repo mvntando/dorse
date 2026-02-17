@@ -24,11 +24,11 @@ def test_initial_position():
         ['r','n','b','q','k','b','n','r'],  # y = 7 (rank 8)
     ]
 
-    assert board == expected
-    assert wc == (1, 1)
-    assert bc == (1, 1)
-    assert ep is None
-    assert sd == 'w'
+    assert pos.board == expected
+    assert pos.wc == (1, 1)
+    assert pos.bc == (1, 1)
+    assert pos.ep is None
+    assert pos.sd == 'w'
 
 
 # GEN_MOVE TESTS
@@ -81,7 +81,7 @@ def test_gen_moves_pawn_promotion():
     move_strs = {move_str(m) for m in moves}
 
     expected_moves = {
-        "a7a8Q", "a7a8R", "a7a8B", "a7a8N",
+        "a7a8q", "a7a8r", "a7a8b", "a7a8n",
     }
 
     assert move_strs == expected_moves
@@ -123,6 +123,12 @@ def test_gen_moves_no_legal():
 
     assert not unexpected_moves.intersection(move_strs)
 
+def test_gen_captures_and_gen_quiets():
+    board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppqpppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
+    pos = Position(board, wc, bc, ep, sd)
+
+    assert set(pos.gen_moves()) == set(pos.gen_captures() + pos.gen_quiets())
+
 
 # PUSH TESTS
 # Test playing a move
@@ -131,78 +137,87 @@ def test_push():
     pos = Position(board, wc, bc, ep, sd)
 
     move = Move(coord('e2'), coord('e4'))  # e2 to e4
-    new_pos = pos.push(move)
+    pos = pos.push(move)
 
     expected_board, _, _, expected_ep, _ = utils.parse_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
 
-    assert new_pos.board == expected_board
-    assert new_pos.ep == expected_ep
-    assert new_pos.sd == 'b'
+    assert pos.board == expected_board
+    assert pos.ep == expected_ep
+    assert pos.sd == 'b'
 
 def test_push_capture():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
     move = Move(coord('e4'), coord('d5'))  # e4 captures e5
-    new_pos = pos.push(move)
+    pos = pos.push(move)
 
     expected_board, _, _, expected_ep, _ = utils.parse_fen("rnbqkbnr/ppp1pppp/8/3P4/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1")
 
-    assert new_pos.board == expected_board
-    assert new_pos.ep == expected_ep
-    assert new_pos.sd == 'b'
+    assert pos.board == expected_board
+    assert pos.ep == expected_ep
+    assert pos.sd == 'b'
 
 def test_push_en_passant():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/1pp1pppp/p7/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
     move = Move(coord('e5'), coord('d6'))  # e5 captures d5 en passant
-    new_pos = pos.push(move)
+    pos = pos.push(move)
 
     expected_board, _, _, expected_ep, _ = utils.parse_fen("rnbqkbnr/1pp1pppp/p2P4/8/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2")
 
-    assert new_pos.board == expected_board
-    assert new_pos.ep == expected_ep
-    assert new_pos.sd == 'b'
+    assert pos.board == expected_board
+    assert pos.ep == expected_ep
+    assert pos.sd == 'b'
 
 def test_push_castling():
     board, wc, bc, ep, sd = utils.parse_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
     move = Move(coord('e1'), coord('g1'))  # White kingside castling
-    new_pos = pos.push(move)
+    pos = pos.push(move)
 
     expected_board, _, _, expected_ep, _ = utils.parse_fen("r3k2r/8/8/8/8/8/8/R4RK1 b kq - 0 1")
 
-    assert new_pos.board == expected_board
-    assert new_pos.ep == expected_ep
-    assert new_pos.sd == 'b'
+    assert pos.board == expected_board
+    assert pos.ep == expected_ep
+    assert pos.sd == 'b'
 
 def test_push_promotion():
     board, wc, bc, ep, sd = utils.parse_fen("8/P7/8/8/8/8/7p/8 w - - 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
     move = Move(coord('a7'), coord('a8'), 'Q')  # a7 to a8 promoting to Queen
-    new_pos = pos.push(move)
+    pos = pos.push(move)
 
     expected_board, _, _, expected_ep, _ = utils.parse_fen("Q7/8/8/8/8/8/7p/8 b - - 0 1")
 
-    assert new_pos.board == expected_board
-    assert new_pos.ep == expected_ep
-    assert new_pos.sd == 'b'
+    assert pos.board == expected_board
+    assert pos.ep == expected_ep
+    assert pos.sd == 'b'
+
+def test_push_promotion_capture():
+    board, wc, bc, ep, sd = utils.parse_fen("8/8/8/8/8/8/7p/6R1 b - - 0 1 ")
+    pos = Position(board, wc, bc, ep, sd)
+    move = Move(coord('h2'), coord('g1'), 'q')  # h2 to h1 promoting to queen capturing black rook
+
+    pos = pos.push(move)
+
+    assert pos.board[0][6] == 'q'  # g1 should now have the promoted queen
 
 def test_push_update_castling_rights():
     board, wc, bc, ep, sd = utils.parse_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
     move = Move(coord('h1'), coord('h2'))  # Move white rook from h1 to h2
-    new_pos = pos.push(move)
+    pos = pos.push(move)
 
     expected_wc = (1, 0)  # White can no longer castle kingside
     expected_bc = bc
 
-    assert new_pos.wc == expected_wc
-    assert new_pos.bc == expected_bc
+    assert pos.wc == expected_wc
+    assert pos.bc == expected_bc
 
 def test_pust_many_moves():
     board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
@@ -352,7 +367,7 @@ def test_make_uci_move_promotion():
     assert pos.board[6][0] == '.'   # a7 empty
     assert pos.board[7][0] == 'Q'   # a8 queen
 
-def test_make_uci_move_illegal():
+def test_make_uci_move_pseudo_illegal():
     pos = Position(INIT_BOARD.copy(), WC, BC, EP, SD)
 
     with pytest.raises(ValueError):

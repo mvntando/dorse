@@ -4,12 +4,20 @@ from utils import DIRECTIONS, SLIDING, attacked
 # GAME LOGIC
 # Move representation
 class Move:
-    __slots__ = ('src', 'dst', 'promo')
+    __slots__ = ('src', 'dst', 'promo', 'score')
 
     def __init__(self, src: tuple[int, int], dst: tuple[int, int], promo: str =''):
         self.src = src
         self.dst = dst
         self.promo = promo
+
+        self.score: int = 0
+
+    def __eq__(self, other):
+        return (self.src == other.src and self.dst == other.dst and self.promo == other.promo and self.score == other.score)
+
+    def __hash__(self):
+        return hash((self.src, self.dst, self.promo, self.score))
 
 
 class Undo:
@@ -79,13 +87,7 @@ class Position:
     def __eq__(self, other) -> bool:
         if not isinstance(other, Position):
             return False
-        return (
-            all(r1 == r2 for r1, r2 in zip(self.board, other.board)) and
-            self.wc == other.wc and
-            self.bc == other.bc and
-            self.ep == other.ep and
-            self.sd == other.sd
-        )
+        return (all(r1 == r2 for r1, r2 in zip(self.board, other.board)) and self.wc == other.wc and self.bc == other.bc and self.ep == other.ep and self.sd == other.sd)
 
     # DEBUG: remove later
     def copy(self) -> 'Position':
@@ -101,7 +103,6 @@ class Position:
     # gen_captures() + gen_quiets() but a little faster
     def gen_moves(self) -> list[Move]: # TODO: Test
         DIRS = DIRECTIONS # local alias
-        in_bounds = lambda r, c: 0 <= r < 8 and 0 <= c < 8
 
         moves: list[Move] = []
 
@@ -137,31 +138,31 @@ class Position:
                     # forward moves
                     for dr, dc in fwd_dirs:
                         r = r0 + dr; c = c0 + dc
-                        if in_bounds(r, c) and self.board[r][c] == '.':
+                        if 0 <= r < 8 and 0 <= c < 8 and self.board[r][c] == '.':  # in bounds and empty
                             if r == promo_row:
                                 for promo in ("q","r","b","n"):
                                     moves.append(Move((r0, c0), (r, c), promo))
                             else:
-                                moves.append(Move((r0, c0), (r, c), ""))
+                                moves.append(Move((r0, c0), (r, c)))
                             # double step
                             if r0 == start_row:
                                 rr = r + dr; cc = c + dc
-                                if in_bounds(rr, cc) and self.board[rr][cc] == '.':
-                                    moves.append(Move((r0, c0), (rr, cc), ""))
+                                if 0 <= rr < 8 and 0 <= cc < 8 and self.board[rr][cc] == '.':
+                                    moves.append(Move((r0, c0), (rr, cc)))
                     # captures
                     for dr, dc in cap_dirs:
                         r = r0 + dr; c = c0 + dc
-                        if in_bounds(r, c):
+                        if 0 <= r < 8 and 0 <= c < 8:
                             target = self.board[r][c]
                             if target != '.' and (target.isupper() != is_white):
                                 if r == promo_row:
                                     for promo in ("q","r","b","n"):
                                         moves.append(Move((r0, c0), (r, c), promo))
                                 else:
-                                    moves.append(Move((r0, c0), (r, c), ""))
+                                    moves.append(Move((r0, c0), (r, c)))
                             # En passant capture
                             elif self.ep is not None and (r, c) == self.ep:
-                                moves.append(Move((r0, c0), (r, c), ""))  # en passant move
+                                moves.append(Move((r0, c0), (r, c)))  # en passant move
                     # done with this pawn
                     continue
 
@@ -173,17 +174,17 @@ class Position:
                     r = r0; c = c0
                     while True:
                         r += dr; c += dc
-                        if not in_bounds(r, c):
+                        if not (0 <= r < 8 and 0 <= c < 8):
                             break
                         target = self.board[r][c]
                         if target == '.':
-                            moves.append(Move((r0, c0), (r, c), ""))
+                            moves.append(Move((r0, c0), (r, c)))
                             if not sliding:
                                 break
                         else:
                             # enemy?
                             if target.isupper() != is_white:
-                                moves.append(Move((r0, c0), (r, c), ""))
+                                moves.append(Move((r0, c0), (r, c)))
                             break
 
                 # --- Castling ---
@@ -211,7 +212,6 @@ class Position:
     # Return pseudo-legal capture moves at a given position.
     def gen_captures(self) -> list[Move]: # TODO: Test
         DIRS = DIRECTIONS
-        in_bounds = lambda r, c: 0 <= r < 8 and 0 <= c < 8
 
         moves: list[Move] = []
 
@@ -239,7 +239,7 @@ class Position:
                     promo_row = 7 if is_white else 0
                     for dr, dc in cap_dirs:
                         r = r0 + dr; c = c0 + dc
-                        if not in_bounds(r, c):
+                        if not (0 <= r < 8 and 0 <= c < 8):  # not in bounds
                             continue
                         target = self.board[r][c]
                         # normal capture
@@ -262,7 +262,7 @@ class Position:
                     r = r0; c = c0
                     while True:
                         r += dr; c += dc
-                        if not in_bounds(r, c):
+                        if not (0 <= r < 8 and 0 <= c < 8):
                             break
 
                         target = self.board[r][c]
@@ -279,8 +279,6 @@ class Position:
     # Return pseudo-legal quiet moves at a given position.
     def gen_quiets(self) -> list[Move]: # TODO: Test
         DIRS = DIRECTIONS
-        in_bounds = lambda r, c: 0 <= r < 8 and 0 <= c < 8
-
         moves: list[Move] = []
 
         for r0 in range(8):
@@ -314,7 +312,7 @@ class Position:
                     # forward moves only
                     for dr, dc in fwd_dirs:
                         r = r0 + dr; c = c0 + dc
-                        if in_bounds(r, c) and self.board[r][c] == '.':
+                        if 0 <= r < 8 and 0 <= c < 8 and self.board[r][c] == '.':
                             if r == promo_row:
                                 for promo in ("q","r","b","n"):
                                     moves.append(Move((r0, c0), (r, c), promo))
@@ -324,7 +322,7 @@ class Position:
                             # double step
                             if r0 == start_row:
                                 rr = r + dr; cc = c + dc
-                                if in_bounds(rr, cc) and self.board[rr][cc] == '.':
+                                if 0 <= rr < 8 and 0 <= cc < 8 and self.board[rr][cc] == '.':
                                     moves.append(Move((r0, c0), (rr, cc), ""))
 
                     continue
@@ -337,7 +335,7 @@ class Position:
                     r = r0; c = c0
                     while True:
                         r += dr; c += dc
-                        if not in_bounds(r, c):
+                        if not (0 <= r < 8 and 0 <= c < 8):
                             break
 
                         target = self.board[r][c]
@@ -370,15 +368,7 @@ class Position:
 
     def push(self, move: Move):
         # --- Push undo ---
-        undo = Undo(
-            move,
-            self.wc,
-            self.bc,
-            self.ep,
-            self.sd,
-            self.wk,
-            self.bk,
-        )
+        undo = Undo(move, self.wc, self.bc, self.ep, self.sd, self.wk, self.bk,)
 
         src, dst, promo = move.src, move.dst, move.promo
         r0, c0 = src
