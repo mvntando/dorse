@@ -13,20 +13,32 @@ import helpers
 INF = 1000000
 MATE = 20000
 
+global Nodes
+
+MAX_DEPTH = 6
+MAX_PLY = 64
+KILLERS: list[list[Move | None]] = [[None, None] for _ in range(MAX_PLY)]  # killer moves for each depth
+
 def search(position: Position, depth: int | None = None) -> Move | None: # TODO: Test
     """
     Search to find the best move.
     """
-    MAX_DEPTH = 6
+
+    global Nodes
+    Nodes = 0
     if depth is None:
-        depth = MAX_DEPTH  # Default depth
+        depth = MAX_DEPTH
+
+    for i in range(MAX_DEPTH):  # Clear killer moves for new search
+        KILLERS[i][0] = None
+        KILLERS[i][1] = None
 
     best_move = None
     alpha = -INF
     beta = INF
 
     moves = position.gen_moves()
-    order(position, moves)  # Score moves
+    order(moves, 0)
     for i in range(len(moves)):
         index = i  # best move index
         for j in range(i + 1, len(moves)):
@@ -42,25 +54,29 @@ def search(position: Position, depth: int | None = None) -> Move | None: # TODO:
             position.pop()
             continue
 
-        score = -alphabeta(position, -beta, -alpha, depth-1)
+        score = -alphabeta(position, -beta, -alpha, depth-1, 1)
         position.pop()
 
         if best_move is None or score > alpha:
             alpha = score
             best_move = move
-    
+
+    print(f"Nodes: {Nodes}")
     return best_move
 
-def alphabeta(position: Position, alpha: int, beta: int, depth: int) -> int: # TODO: Test
+def alphabeta(position: Position, alpha: int, beta: int, depth: int, ply: int) -> int: # TODO: Test
     """
     Alpha-beta pruning search algorithm.
     """
+
+    global Nodes
+    Nodes += 1
     if depth == 0:
-        return quiescence(position, alpha, beta)
+        return quiescence(position, alpha, beta, ply)
 
     found = False
     moves = position.gen_moves()
-    order(position, moves)
+    order(moves, ply)
     for i in range(len(moves)):
         index = i  # best move index
         for j in range(i + 1, len(moves)):
@@ -77,10 +93,14 @@ def alphabeta(position: Position, alpha: int, beta: int, depth: int) -> int: # T
             continue
 
         found = True
-        score = -alphabeta(position, -beta, -alpha, depth-1)
+        score = -alphabeta(position, -beta, -alpha, depth-1, ply+1)
         position.pop()
 
         if score >= beta:
+            if move.captured is None:
+                if KILLERS[ply][0] != move:  #  killer moves
+                    KILLERS[ply][1] = KILLERS[ply][0]
+                    KILLERS[ply][0] = move
             return beta
         if score > alpha:
             alpha = score
@@ -94,22 +114,21 @@ def alphabeta(position: Position, alpha: int, beta: int, depth: int) -> int: # T
 
     return alpha
 
-MAX_QSDEPTH = 4
-def quiescence(position: Position, alpha: int, beta: int, qs_depth: int = 0) -> int: # TODO: Test
+def quiescence(position: Position, alpha: int, beta: int, ply: int = 0) -> int: # TODO: Test
     """
     Quiescence search to evaluate "quiet" positions and avoid horizon effect.
-    """    
+    """
 
+    global Nodes
+    Nodes += 1
     score = evaluate(position)
     if score >= beta:
         return beta
     if score > alpha:
         alpha = score
-    if qs_depth >= MAX_QSDEPTH:
-        return alpha
     
     moves = position.gen_captures()
-    order(position, moves)
+    order(moves, ply)
     for i in range(len(moves)):
         index = i  # best move index
         for j in range(i + 1, len(moves)):
@@ -125,7 +144,7 @@ def quiescence(position: Position, alpha: int, beta: int, qs_depth: int = 0) -> 
             position.pop()
             continue
 
-        score = -quiescence(position, -beta, -alpha, qs_depth+1)
+        score = -quiescence(position, -beta, -alpha, ply+1)
         position.pop()
 
         if score >= beta:
@@ -140,17 +159,16 @@ PIECE_VALUE = {
     'P': 100, 'N': 320, 'B': 330, 'R': 500, 'Q': 900, 'K': 20000,
     'p': 100, 'n': 320, 'b': 330, 'r': 500, 'q': 900, 'k': 20000
 }
-def order(position: Position, moves: list[Move]):
-
-    def mvv_lva(move: Move):
-        """
-        MVV-LVA (Most Valuable Victim - Least Valuable Attacker) move ordering
-        """
-        victim = position.board[move.dst[0]][move.dst[1]]
-        if victim == '.':
-            return 0
-        attacker = position.board[move.src[0]][move.src[1]]
-        return 10000 + PIECE_VALUE[victim] - PIECE_VALUE[attacker]
-
+def order(moves: list[Move], depth: int) -> None:
     for move in moves:
-        move.score = mvv_lva(move)
+        move.score = 0
+        if move.captured is not None:
+            attacker = move.piece
+            victim = move.captured
+            move.score = 100000 + PIECE_VALUE[victim] * 10 - PIECE_VALUE[attacker]
+
+        else:
+            if KILLERS[depth][0] is not None and move == KILLERS[depth][0]:
+                move.score = 90000
+            elif KILLERS[depth][1] is not None and move == KILLERS[depth][1]:
+                move.score = 80000

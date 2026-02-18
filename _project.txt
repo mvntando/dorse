@@ -23,3 +23,5 @@
     assert after == before, f""
 
 - move ordering, iterative deepening, tt table (zobrist hash), improve move ordering with tt best move
+
+- elif self.ep is not None and (r, c) == self.ep:  (check if its redundant in move generation)

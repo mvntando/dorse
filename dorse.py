@@ -16,7 +16,9 @@ class Move:
         self.score: int = 0
 
     def __eq__(self, other):
-        return (self.src == other.src and self.dst == other.dst and self.promo == other.promo and self.piece == other.piece and self.captured == other.captured and self.score == other.score)
+        if not isinstance(other, Move):
+            return False
+        return (self.src == other.src and self.dst == other.dst and self.promo == other.promo)
 
     def __hash__(self):
         return hash((self.src, self.dst, self.promo, self.piece, self.captured, self.score))
