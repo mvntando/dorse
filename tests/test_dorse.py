@@ -136,7 +136,7 @@ def test_push():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
-    move = Move(coord('e2'), coord('e4'))  # e2 to e4
+    move = Move(coord('e2'), coord('e4'), None, 'P')  # e2 to e4
     pos = pos.push(move)
 
     expected_board, _, _, expected_ep, _ = utils.parse_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
@@ -149,7 +149,7 @@ def test_push_capture():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
-    move = Move(coord('e4'), coord('d5'))  # e4 captures e5
+    move = Move(coord('e4'), coord('d5'), None, 'P', 'p')  # e4 captures e5
     pos = pos.push(move)
 
     expected_board, _, _, expected_ep, _ = utils.parse_fen("rnbqkbnr/ppp1pppp/8/3P4/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1")
@@ -162,7 +162,7 @@ def test_push_en_passant():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/1pp1pppp/p7/3pP3/8/8/PPPP1PPP/RNBQKBNR w KQkq d6 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
-    move = Move(coord('e5'), coord('d6'))  # e5 captures d5 en passant
+    move = Move(coord('e5'), coord('d6'), None, 'P', 'p')  # e5 captures d5 en passant
     pos = pos.push(move)
 
     expected_board, _, _, expected_ep, _ = utils.parse_fen("rnbqkbnr/1pp1pppp/p2P4/8/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2")
@@ -175,7 +175,7 @@ def test_push_castling():
     board, wc, bc, ep, sd = utils.parse_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
-    move = Move(coord('e1'), coord('g1'))  # White kingside castling
+    move = Move(coord('e1'), coord('g1'), None, 'K')  # White kingside castling
     pos = pos.push(move)
 
     expected_board, _, _, expected_ep, _ = utils.parse_fen("r3k2r/8/8/8/8/8/8/R4RK1 b kq - 0 1")
@@ -188,7 +188,7 @@ def test_push_promotion():
     board, wc, bc, ep, sd = utils.parse_fen("8/P7/8/8/8/8/7p/8 w - - 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
-    move = Move(coord('a7'), coord('a8'), 'Q')  # a7 to a8 promoting to Queen
+    move = Move(coord('a7'), coord('a8'), 'q', 'P')  # a7 to a8 promoting to Queen
     pos = pos.push(move)
 
     expected_board, _, _, expected_ep, _ = utils.parse_fen("Q7/8/8/8/8/8/7p/8 b - - 0 1")
@@ -200,7 +200,7 @@ def test_push_promotion():
 def test_push_promotion_capture():
     board, wc, bc, ep, sd = utils.parse_fen("8/8/8/8/8/8/7p/6R1 b - - 0 1 ")
     pos = Position(board, wc, bc, ep, sd)
-    move = Move(coord('h2'), coord('g1'), 'q')  # h2 to h1 promoting to queen capturing black rook
+    move = Move(coord('h2'), coord('g1'), 'q', 'p', 'R')  # h2 to g1 promoting to queen capturing black rook
 
     pos = pos.push(move)
 
@@ -210,7 +210,7 @@ def test_push_update_castling_rights():
     board, wc, bc, ep, sd = utils.parse_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
-    move = Move(coord('h1'), coord('h2'))  # Move white rook from h1 to h2
+    move = Move(coord('h1'), coord('h2'), None, 'R')  # Move white rook from h1 to h2
     pos = pos.push(move)
 
     expected_wc = (1, 0)  # White can no longer castle kingside
@@ -224,11 +224,11 @@ def test_pust_many_moves():
     pos = Position(board, wc, bc, ep, sd)
 
     moves = [
-        Move(coord('e2'), coord('e4')),  # e2 to e4
-        Move(coord('e7'), coord('e5')),  # e7 to e5
-        Move(coord('g1'), coord('f3')),  # g1 to f3
-        Move(coord('b8'), coord('c6')),  # b8 to c6
-        Move(coord('f1'), coord('c4')),  # f1 to c4
+        Move(coord('e2'), coord('e4'), None, 'P'),  # e2 to e4
+        Move(coord('e7'), coord('e5'), None, 'p'),
+        Move(coord('g1'), coord('f3'), None, 'N'),
+        Move(coord('b8'), coord('c6'), None, 'n'),
+        Move(coord('f1'), coord('c4'), None, 'B'),
     ]
 
     for move in moves:
@@ -244,7 +244,7 @@ def test_pop():
     pos = Position(board, wc, bc, ep, sd)
     orig_pos = pos.copy()
 
-    move = Move(coord('e2'), coord('e4'))  # e2 to e4
+    move = Move(coord('e2'), coord('e4'), None, 'P')  # e2 to e4
     pos = pos.push(move)
     assert not orig_pos.board == pos.board
     
@@ -271,7 +271,7 @@ def test_pop_en_passant():
     pos = Position(board, wc, bc, ep, sd)
     orig_pos = pos.copy()
 
-    move = Move(coord('e5'), coord('d6'))  # e5 captures d5 en passant
+    move = Move(coord('e5'), coord('d6'), None, 'P', 'p')  # e5 captures d5 en passant
     pos = pos.push(move)
     assert not orig_pos.board == pos.board
     
@@ -284,7 +284,7 @@ def test_pop_castling():
     pos = Position(board, wc, bc, ep, sd)
     orig_pos = pos.copy()
 
-    move = Move(coord('e1'), coord('g1'))  # White kingside castling
+    move = Move(coord('e1'), coord('g1'), None, 'K')  # White kingside castling
     pos = pos.push(move)
     assert not orig_pos.board == pos.board
     

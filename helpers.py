@@ -29,7 +29,7 @@ def coord(s: str) -> tuple[int, int]:
 
 # Convert a Move to UCI string
 def move_str(move: Move) -> str:
-    return square(move.src) + square(move.dst) + move.promo
+    return square(move.src) + square(move.dst) + (move.promo or '')
 
 # Print the board in a human-readable format
 def print_position(pos: Position) -> None:
@@ -37,4 +37,3 @@ def print_position(pos: Position) -> None:
     for rank in reversed(board):
         print(' '.join(rank))
     print(f"sd: {pos.sd}, wk: {pos.wk}, bk: {pos.bk}")
-

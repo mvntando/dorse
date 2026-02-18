@@ -64,7 +64,7 @@ def uci_loop():
             # Convert internal coordinates to UCI format
             src = chr(ord('a') + move.src[1]) + str(move.src[0] + 1)
             dst = chr(ord('a') + move.dst[1]) + str(move.dst[0] + 1)
-            promo = move.promo.lower()
+            promo = move.promo if move.promo else ''
 
             bestmove_str = f"bestmove {src}{dst}{promo}"
             print(bestmove_str)
@@ -100,4 +100,3 @@ def parse_position(line):
 
 if __name__ == "__main__":
     uci_loop()
-    
