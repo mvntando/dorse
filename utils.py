@@ -53,12 +53,12 @@ def parse_fen(fen: str) -> tuple[list[list[str]], tuple[int, int], tuple[int, in
         ep = None
     else:
         file = ord(ep[0]) - ord('a')
-        rank = int(ep[1]) - 1   # rank 1 → index 0
+        rank = int(ep[1]) - 1  # rank 1 → index 0
         ep = (rank, file)
     return board, wc, bc, ep, sd
 
 # Check if square is attacked by opponent's pieces
-def attacked(pos, sq, opponent) -> bool:
+def attacked(pos, sq: tuple[int, int], opponent: str) -> bool:
     r, c = sq
     board = pos.board
     

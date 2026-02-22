@@ -81,7 +81,7 @@ def alphabeta(position: Position, alpha: int, beta: int, depth: int, ply: int) -
     global Nodes
     Nodes += 1
     if depth == 0:
-        return quiescence(position, alpha, beta, ply)
+        return qsearch(position, alpha, beta, ply)
 
     found = False
     moves = position.gen_moves()
@@ -117,7 +117,7 @@ def alphabeta(position: Position, alpha: int, beta: int, depth: int, ply: int) -
 
     return alpha
 
-def quiescence(position: Position, alpha: int, beta: int, ply: int = 0) -> int: # TODO: Test
+def qsearch(position: Position, alpha: int, beta: int, ply: int = 0) -> int: # TODO: Test
     """
     Quiescence search to evaluate "quiet" positions and avoid horizon effect.
     """
@@ -140,7 +140,7 @@ def quiescence(position: Position, alpha: int, beta: int, ply: int = 0) -> int: 
             position.pop()
             continue
 
-        score = -quiescence(position, -beta, -alpha, ply + 1)
+        score = -qsearch(position, -beta, -alpha, ply + 1)
         position.pop()
 
         if score >= beta:

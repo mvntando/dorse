@@ -21,7 +21,7 @@ class Move:
         return (self.src == other.src and self.dst == other.dst and self.promo == other.promo)
 
     def __hash__(self):
-        return hash((self.src, self.dst, self.promo, self.piece, self.captured, self.score))
+        return hash((self.src, self.dst, self.promo))
 
 
 class Undo:
@@ -49,7 +49,7 @@ class Undo:
         self.bk = bk
         
         self.ep_sq: tuple[int, int] | None = None
-        self.castle: int | None = None  # queenside: 0, kingside: 1 or None (to put castle squares in the future to handle chess960 castling)
+        self.castle: int | None = None  # queenside: 0, kingside: 1 or None
 
 
 class Position:
@@ -439,7 +439,7 @@ class Position:
                 if self.bc != (0, 0):
                     self.bc = (0, 0)
                 # handle king square updates
-                undo.bc = self.bc
+                undo.bk = self.bk
                 self.bk = (r1, c1)
 
         elif piece.upper() == 'R':  # Rook moved
