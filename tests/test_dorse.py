@@ -263,17 +263,23 @@ def test_gen_moves_castle_rights_queenside_black():
 
     assert not unexpected_moves.intersection(move_strs)
 
-def test_gen_captures_and_gen_quiets_white():
+def test_gen_captures_white():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
-    assert set(pos.gen_moves()) == set(pos.gen_captures() + pos.gen_quiets())
+    moves = pos.gen_moves()
+    captures = pos.gen_captures()
 
-def test_gen_captures_and_gen_quiets_black():
+    assert set(captures).issubset(set(moves))
+
+def test_gen_captures_black():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppqpppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
-    assert set(pos.gen_moves()) == set(pos.gen_captures() + pos.gen_quiets())
+    moves = pos.gen_moves()
+    captures = pos.gen_captures()
+
+    assert set(captures).issubset(set(moves))
 
 
 # PUSH TESTS

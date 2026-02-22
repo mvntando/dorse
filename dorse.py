@@ -102,7 +102,6 @@ class Position:
         )
 
     # Return legal moves for at a given position.
-    # gen_captures() + gen_quiets() but a little faster
     def gen_moves(self) -> list[Move]: # TODO: Test
         DIRS = DIRECTIONS # local alias
 
@@ -282,6 +281,7 @@ class Position:
     def push(self, move: Move):
         # --- Push undo ---
         undo = Undo(move, self.wc, self.bc, self.ep, self.sd, self.wk, self.bk,)
+        self.history.append(undo)
 
         src, dst, promo = move.src, move.dst, move.promo
         r0, c0 = src
@@ -299,9 +299,6 @@ class Position:
         else:
             # --- Normal capture ---
             captured = self.board[r1][c1]
-
-        # --- Append undo to history ---
-        self.history.append(undo)
         
         # --- Update castling rights if rook was captured ---
         captured = self.board[r1][c1]  # destination square BEFORE the move
@@ -339,18 +336,14 @@ class Position:
                 self.board[r1][0] = '.'
 
         # --- Update castling rights and king squares ---
-        if piece.upper() == 'K':  # King moved → lose both rights
+        if piece.upper() == 'K':  # King moved -> lose both rights
             if is_white:
                 if self.wc != (0, 0):
                     self.wc = (0, 0)
-                # handle king square updates
-                undo.wk = self.wk
                 self.wk = (r1, c1)
             else:
                 if self.bc != (0, 0):
                     self.bc = (0, 0)
-                # handle king square updates
-                undo.bk = self.bk
                 self.bk = (r1, c1)
 
         elif piece.upper() == 'R':  # Rook moved
