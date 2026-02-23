@@ -6,12 +6,18 @@
 
 from dorse import Position, Move
 from evaluate import evaluate, PIECE_VALUES
-import helpers
 
-INF = 1000000
-MATE = 20000
+INF = 1_000_000
+MATE = 20_000
 
 global Nodes
+
+TT = {}  # Transposition Table
+
+# Flags
+EXACT = 0
+LOWERBOUND = 1
+UPPERBOUND = 2
 
 MAX_DEPTH = 6
 MAX_PLY = 64
@@ -27,6 +33,7 @@ def search(position: Position, depth: int | None = None) -> Move | None: # TODO:
     if depth is None:
         depth = MAX_DEPTH
 
+    TT.clear()  # Clear transposition table for new search
     for i in range(depth):  # Clear killer moves for new search
         KILLERS[i][0] = None
         KILLERS[i][1] = None
@@ -41,14 +48,12 @@ def search(position: Position, depth: int | None = None) -> Move | None: # TODO:
         l_best = None  # local best move for this iteration
         moves = position.gen_moves()
         score_moves(moves, 0)
+        moves.sort(key=lambda m: m.score, reverse=True)
 
         if best_move is not None:  # try best_move first from previous iteration
-            for m in moves:
-                if m == best_move:
-                    m.score = 10_000_000  # force first
-                    break
-
-        moves.sort(key=lambda m: m.score, reverse=True)
+            if best_move in moves:
+                moves.remove(best_move)
+                moves.insert(0, best_move)
 
         for move in moves:
             mover = position.sd
@@ -73,49 +78,93 @@ def search(position: Position, depth: int | None = None) -> Move | None: # TODO:
     print(f"Nodes: {Nodes}")
     return best_move
 
-def alphabeta(position: Position, alpha: int, beta: int, depth: int, ply: int) -> int: # TODO: Test
+def alphabeta(position: Position, alpha: int, beta: int, depth: int, ply: int) -> int:
     """
     Alpha-beta pruning search algorithm.
     """
 
-    global Nodes
+    global Nodes, TT
     Nodes += 1
+
+    og_alpha = alpha
+    key = position.hash
+    entry = TT.get(key)
+
+    # TT probe
+    if entry:
+        entry_depth, entry_score, entry_flag, entry_move = TT[key]
+
+        if entry_depth >= depth:
+            if entry_flag == EXACT:
+                return entry_score
+            elif entry_flag == LOWERBOUND and entry_score >= beta:
+                return entry_score
+            elif entry_flag == UPPERBOUND and entry_score <= alpha:
+                return entry_score
+
     if depth == 0:
         return qsearch(position, alpha, beta, ply)
 
+    best_move = None
+    best_score = -INF
     found = False
-    moves = position.gen_moves()
 
+    moves = position.gen_moves()
     score_moves(moves, ply)
     moves.sort(key=lambda m: m.score, reverse=True)
+
+    # TT move ordering
+    if entry:
+        tt_move = TT[key][3]
+        if tt_move in moves:
+            moves.remove(tt_move)
+            moves.insert(0, tt_move)
+
     for move in moves:
         mover = position.sd
         position.push(move)
-        if position.in_check(mover):  # Illegal move, skip
+
+        if position.in_check(mover):
             position.pop()
             continue
 
         found = True
+
         score = -alphabeta(position, -beta, -alpha, depth - 1, ply + 1)
         position.pop()
 
+        if score > best_score:
+            best_score = score
+            best_move = move
+
         if score >= beta:
+            TT[key] = (depth, score, LOWERBOUND, best_move)
+
             if move.captured is None:
-                if KILLERS[ply][0] != move:  #  killer moves
+                if KILLERS[ply][0] != move:
                     KILLERS[ply][1] = KILLERS[ply][0]
                     KILLERS[ply][0] = move
-            return beta
+
+            return score
+
         if score > alpha:
             alpha = score
 
-    # Mate / stalemate detection after all moves
     if not found:
         if position.in_check(position.sd):
             return -MATE + ply  # mate
         else:
             return 0  # stalemate
 
-    return alpha
+    # TT store
+    if best_score <= og_alpha:
+        flag = UPPERBOUND
+    else:
+        flag = EXACT
+
+    TT[key] = (depth, best_score, flag, best_move)
+
+    return best_score
 
 def qsearch(position: Position, alpha: int, beta: int, ply: int = 0) -> int: # TODO: Test
     """
