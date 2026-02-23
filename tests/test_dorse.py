@@ -290,12 +290,12 @@ def test_push_white():
     move = Move(coord('e2'), coord('e4'), None, 'P')  # e2 to e4
     pos = pos.push(move)
 
-    expected_board, *_ = utils.parse_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq e3 0 1")
+    expected_board, *_ = utils.parse_fen("rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1")
 
     assert pos.board == expected_board
     assert pos.wc == (1, 1)
     assert pos.bc == (1, 1)
-    assert pos.ep == (2, 4) 
+    assert pos.ep == None
     assert pos.sd == 'b'
 
 def test_push_black():
@@ -310,7 +310,7 @@ def test_push_black():
     assert pos.board == expected_board
     assert pos.wc == (1, 1)
     assert pos.bc == (1, 1)
-    assert pos.ep == (5, 4) 
+    assert pos.ep == None
     assert pos.sd == 'w'
 
 def test_push_capture_white():
@@ -342,7 +342,7 @@ def test_push_en_passant_white():
     move = Move(coord('e5'), coord('d6'), None, 'P', 'p')  # e5 captures d5 en passant
     pos = pos.push(move)
 
-    expected_board, *_ = utils.parse_fen("rnbqkbnr/1pp1pppp/p2P4/8/8/8/PPPP1PPP/RNBQKBNR b KQkq - 0 2")
+    expected_board, *_ = utils.parse_fen("rnbqkbnr/1pp1pppp/p2P4/8/8/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1")
 
     assert pos.board == expected_board
     assert pos.ep == None
@@ -494,6 +494,41 @@ def test_push_pop():
         pos = pos.pop()
     
     assert pos.board == INIT_BOARD
+
+# Test hash consistency after push and pop
+import random
+
+def test_hash_push_pop():
+    board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
+    pos = Position(board, wc, bc, ep, sd)
+    original_hash = pos.hash
+
+    stack = []
+    for _ in range(50):
+        moves = pos.gen_moves()
+        if not moves:
+            break
+        move = random.choice(moves)
+        stack.append(move)
+        pos.push(move)
+
+    while stack:
+        pos.pop()
+        stack.pop()
+
+    assert pos.hash == original_hash
+
+def test_hash_push():
+    board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
+    pos = Position(board, wc, bc, ep, sd)
+
+    for _ in range(1000):
+        moves = pos.gen_moves()
+        if not moves:
+            break
+        pos.push(random.choice(moves))
+
+    assert pos.hash == pos.gen_hash()
 
 
 # POP TESTS

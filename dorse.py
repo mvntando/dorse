@@ -1,4 +1,4 @@
-from utils import DIRECTIONS, SLIDING, attacked
+from utils import DIRECTIONS, SLIDING, attacked, PIECE_INDEX, PIECE_KEYS, SIDE_KEY, CASTLE_KEYS, EP_KEYS
 
 # GAME LOGIC
 # Move representation
@@ -25,7 +25,7 @@ class Move:
 
 
 class Undo:
-    __slots__ = ('move', 'wc', 'bc', 'ep', 'sd', 'ep_sq', 'castle', 'wk', 'bk')
+    __slots__ = ('move', 'wc', 'bc', 'ep', 'sd', 'ep_sq', 'castle', 'wk', 'bk', 'hash')
 
     # This class represents the information needed to undo a move.
     # move      -- the move being undone
@@ -33,10 +33,10 @@ class Undo:
     # wc, bc    -- castling rights before the move
     # ep        -- en passant square before the move
     # sd        -- side to move before the move
-    # captured  -- the piece that was captured, if any (for restoring captured piece)
     # ep_sq     -- the square of the captured pawn for en passant captures (for restoring captured pawn)
     # castle    -- if the move was a castling move, this indicates the rook move
     # wk, bk    -- the king squares before the move
+    # hash      -- the Zobrist hash of the position before the move
 
     def __init__(self, move: Move, wc: tuple[int, int], bc: tuple[int, int], ep: tuple[int, int] | None, sd: str, wk: tuple[int, int] | None, bk: tuple[int, int] | None):
         self.move = move
@@ -50,10 +50,11 @@ class Undo:
         
         self.ep_sq: tuple[int, int] | None = None
         self.castle: int | None = None  # queenside: 0, kingside: 1 or None
+        self.hash: int = 0
 
 
 class Position:
-    __slots__ = ('board', 'wc', 'bc', 'ep', 'sd', 'wk', 'bk', 'score', 'history')
+    __slots__ = ('board', 'wc', 'bc', 'ep', 'sd', 'wk', 'bk', 'score', 'history', 'hash')
 
     # A state of a chess game
     # board   -- the current board state as a numpy array. !IMPOTANT - board is a cartesian grid
@@ -66,6 +67,7 @@ class Position:
 
     # score   -- the board evaluation (none unless incremental evaluation is enabled)
     # history -- stack of Undo objects for undoing moves
+    # hash    -- zobrist hash of the position
 
     def __init__(self, board: list[list[str]], wc: tuple[int, int], bc: tuple[int, int], ep: tuple[int, int] | None, sd: str):
         self.board = board
@@ -78,13 +80,16 @@ class Position:
         
         self.score: int | None = None  # Reserved for future incremental evaluation
         self.history: list[Undo] = []
+        self.hash = self.gen_hash()  # Zobrist hash
 
+        # Initialize king squares
         for r in range(8):
             for c in range(8):
                 if board[r][c] == 'K':
                     self.wk = (r, c)
                 elif board[r][c] == 'k':
                     self.bk = (r, c)
+
 
     def __eq__(self, other) -> bool:
         if not isinstance(other, Position):
@@ -100,9 +105,43 @@ class Position:
             None if self.ep is None else self.ep,
             self.sd,
         )
+    
+    def gen_hash(self) -> int:
+        # Initialize hash
+        h = 0
+        # pieces
+        for row in range(8):
+            for col in range(8):
+                piece = self.board[row][col]
+
+                if piece != ".":
+                    piece_index = PIECE_INDEX[piece]
+                    sq = row * 8 + col
+                    h ^= PIECE_KEYS[piece_index][sq]
+
+        # side to move
+        if self.sd == "w":
+            h ^= SIDE_KEY
+
+        # castling rights
+        if self.wc[0] == 1:
+            h ^= CASTLE_KEYS[0]
+        if self.wc[1] == 1:
+            h ^= CASTLE_KEYS[1]
+        if self.bc[0] == 1:
+            h ^= CASTLE_KEYS[2]
+        if self.bc[1] == 1:
+            h ^= CASTLE_KEYS[3]
+
+        # en passant
+        if self.ep is not None:
+            file = self.ep[1]
+            h ^= EP_KEYS[file]
+
+        return h
 
     # Return legal moves for at a given position.
-    def gen_moves(self) -> list[Move]: # TODO: Test
+    def gen_moves(self) -> list[Move]:
         DIRS = DIRECTIONS # local alias
 
         moves: list[Move] = []
@@ -212,7 +251,7 @@ class Position:
         return moves
     
     # Return pseudo-legal capture moves at a given position.
-    def gen_captures(self) -> list[Move]: # TODO: Test
+    def gen_captures(self) -> list[Move]:
         DIRS = DIRECTIONS
 
         moves: list[Move] = []
@@ -253,7 +292,7 @@ class Position:
                                 moves.append(Move((r0,c0), (r,c), None, piece, target))
                         # en passant capture
                         elif self.ep is not None and (r, c) == self.ep:
-                            moves.append(Move((r0,c0), (r,c), None, piece, self.board[r0][c]))
+                            moves.append(Move((r0, c0), (r, c), None, piece, self.board[r0][c]))
                     continue
 
                 # --- Non-pawns ---
@@ -281,6 +320,7 @@ class Position:
     def push(self, move: Move):
         # --- Push undo ---
         undo = Undo(move, self.wc, self.bc, self.ep, self.sd, self.wk, self.bk,)
+        undo.hash = self.hash
         self.history.append(undo)
 
         src, dst, promo = move.src, move.dst, move.promo
@@ -290,29 +330,50 @@ class Position:
 
         is_white = self.sd == 'w'
 
+        # Remove en passant hash if exists
+        if self.ep is not None:
+            self.hash ^= EP_KEYS[self.ep[1]]
+
+        captured = move.captured
         # --- Handle en passant capture ---
         if piece.upper() == 'P' and self.ep and dst == self.ep:
-            # --- Add captured piece for en passant to undo ---
+            # --- Add captured piece for en passant undo ---
             undo.ep_sq = (r0, c1)
-            self.board[r0][c1] = '.'
 
-        else:
-            # --- Normal capture ---
-            captured = self.board[r1][c1]
+            # Remove captured pawn from board and hash
+            sq_ep = r0 * 8 + c1
+            captured_pawn = 'p' if is_white else 'P'
+            self.hash ^= PIECE_KEYS[PIECE_INDEX[captured_pawn]][sq_ep]
+
+            self.board[r0][c1] = '.'
         
+        # Remove captured piece hash
+        elif captured:
+            sq_to = r1 * 8 + c1
+            self.hash ^= PIECE_KEYS[PIECE_INDEX[captured]][sq_to]
+
         # --- Update castling rights if rook was captured ---
-        captured = self.board[r1][c1]  # destination square BEFORE the move
-        if captured.upper() == 'R':
+        if captured and captured.upper() == 'R':
             if is_white:  # Captured black rook
                 if dst == (7, 0) and self.bc[0] != 0:  # a8 rook
+                    self.hash ^= CASTLE_KEYS[2]  # remove black queenside hash
                     self.bc = (0, self.bc[1])
                 elif dst == (7, 7) and self.bc[1] != 0:  # h8 rook
+                    self.hash ^= CASTLE_KEYS[3]  # remove black kingside hash
                     self.bc = (self.bc[0], 0)
             else:  # Captured white rook
                 if dst == (0, 0) and self.wc[0] != 0:  # a1 rook
+                    self.hash ^= CASTLE_KEYS[0]  # remove white queenside hash
                     self.wc = (0, self.wc[1])
                 elif dst == (0, 7) and self.wc[1] != 0:  # h1 rook
+                    self.hash ^= CASTLE_KEYS[1]  # remove white kingside hash
                     self.wc = (self.wc[0], 0)
+
+        # Update hash for moved piece
+        sq_from = r0 * 8 + c0
+        self.hash ^= PIECE_KEYS[PIECE_INDEX[piece]][sq_from]
+        sq_to = r1 * 8 + c1
+        self.hash ^= PIECE_KEYS[PIECE_INDEX[piece]][sq_to]
 
         # --- Move piece ---
         self.board[r1][c1] = piece
@@ -320,29 +381,56 @@ class Position:
 
         # --- Handle promotion ---
         if promo is not None:
-            self.board[r1][c1] = promo.upper() if is_white else promo
+            self.hash ^= PIECE_KEYS[PIECE_INDEX[piece]][sq_to]  # remove pawn hash added before
+            promo = promo.upper() if is_white else promo
+            self.hash ^= PIECE_KEYS[PIECE_INDEX[promo]][sq_to]  # add promoted piece hash
+
+            self.board[r1][c1] = promo
 
         # --- Handle castling (moving rook as well) ---
         if piece.upper() == 'K' and abs(c1 - c0) == 2:
-            if c1 == 6:  # Kingside castling
-                undo.castle = 1  # Update undo castle flag
-
-                self.board[r1][5] = 'R' if is_white else 'r'
-                self.board[r1][7] = '.'
-            else:  # Queenside castling
+            rook = 'R' if is_white else 'r'
+            
+            if c1 == 2:  # Queenside castling
                 undo.castle = 0  # Update undo castle flag
 
-                self.board[r1][3] = 'R' if is_white else 'r'
+                rook_from = r1 * 8 + 0
+                rook_to   = r1 * 8 + 3
+                # Update hash for rook move
+                self.hash ^= PIECE_KEYS[PIECE_INDEX[rook]][rook_from]
+                self.hash ^= PIECE_KEYS[PIECE_INDEX[rook]][rook_to]
+
+                # Update board
+                self.board[r1][3] = rook
                 self.board[r1][0] = '.'
+
+            else:  # Kingside castling
+                undo.castle = 1  # Update undo castle flag
+
+                rook_from = r1 * 8 + 7
+                rook_to   = r1 * 8 + 5
+                # Update hash for rook move
+                self.hash ^= PIECE_KEYS[PIECE_INDEX[rook]][rook_from]
+                self.hash ^= PIECE_KEYS[PIECE_INDEX[rook]][rook_to]
+
+                # Update board
+                self.board[r1][5] = rook
+                self.board[r1][7] = '.'
 
         # --- Update castling rights and king squares ---
         if piece.upper() == 'K':  # King moved -> lose both rights
             if is_white:
                 if self.wc != (0, 0):
+                    self.hash ^= CASTLE_KEYS[0]  # remove white queenside hash
+                    self.hash ^= CASTLE_KEYS[1]  # remove white kingside hash
+
                     self.wc = (0, 0)
                 self.wk = (r1, c1)
             else:
                 if self.bc != (0, 0):
+                    self.hash ^= CASTLE_KEYS[2]  # remove black queenside hash
+                    self.hash ^= CASTLE_KEYS[3]  # remove black kingside hash
+
                     self.bc = (0, 0)
                 self.bk = (r1, c1)
 
@@ -350,30 +438,42 @@ class Position:
             if is_white:  # White rook moved
                 if src == (0, 0):  # a1 rook
                     if self.wc[0] != 0:
+                        self.hash ^= CASTLE_KEYS[0]  # remove white queenside hash
                         self.wc = (0, self.wc[1])
                 elif src == (0, 7):  # h1 rook
                     if self.wc[1] != 0:
+                        self.hash ^= CASTLE_KEYS[1]  # remove white kingside hash
                         self.wc = (self.wc[0], 0)
             else:  # Black rook moved
                 if src == (7, 0):  # a8 rook
                     if self.bc[0] != 0:
+                        self.hash ^= CASTLE_KEYS[2]  # remove black queenside hash
                         self.bc = (0, self.bc[1])
                 elif src == (7, 7):  # h8 rook
                     if self.bc[1] != 0:
+                        self.hash ^= CASTLE_KEYS[3]  # remove black kingside hash
                         self.bc = (self.bc[0], 0)
 
         # --- Update en passant target ---
         if piece.upper() == 'P' and abs(r1 - r0) == 2:
-            self.ep = ((r0 + r1) // 2, c0)
+            ep_row = (r0 + r1) // 2
+            enemy = 'p' if is_white else 'P'
+            if any(0 <= nc < 8 and self.board[r1][nc] == enemy for nc in (c0 - 1, c0 + 1)):
+                self.ep = (ep_row, c0)
+                self.hash ^= EP_KEYS[c0]  # add new ep hash
+            else:
+                self.ep = None
+        
         else:
             self.ep = None
 
         # --- Switch side ---
+        self.hash ^= SIDE_KEY  # switch side hash
         self.sd = 'b' if is_white else 'w'
 
         return self
     
-    def pop(self): # TODO: Test
+    def pop(self):
         undo = self.history.pop()
 
         move = undo.move
@@ -387,6 +487,7 @@ class Position:
         self.ep = undo.ep
         self.wk = undo.wk
         self.bk = undo.bk
+        self.hash = undo.hash
 
         # --- Undo move ---
         self.board[r1][c1] = '.'
@@ -395,13 +496,13 @@ class Position:
         # --- Undo castling rook move ---
         if undo.castle is not None:
             if undo.castle == 1:  # kingside
-                rook = self.board[r0][5]
-                self.board[r0][5] = '.'
-                self.board[r0][7] = rook
+                rook = self.board[r1][5]
+                self.board[r1][5] = '.'
+                self.board[r1][7] = rook
             else:  # queenside
-                rook = self.board[r0][3]
-                self.board[r0][3] = '.'
-                self.board[r0][0] = rook
+                rook = self.board[r1][3]
+                self.board[r1][3] = '.'
+                self.board[r1][0] = rook
 
         # --- Restore captured piece ---
         if undo.move.captured:
@@ -413,7 +514,7 @@ class Position:
         
         return self
 
-    def in_check(self, sd: str) -> bool: # TODO: Test
+    def in_check(self, sd: str) -> bool:
         """
         Check if the king of side `sd` is attacked by opponent.
         """

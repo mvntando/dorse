@@ -1,3 +1,24 @@
+import random
+
+# Zobrist hashing
+random.seed(0)  # deterministic
+
+PIECE_INDEX = {
+    "P": 0, "N": 1, "B": 2, "R": 3, "Q": 4, "K": 5,
+    "p": 6, "n": 7, "b": 8, "r": 9, "q": 10, "k": 11
+}
+
+# 12 pieces × 64 squares
+# 1 side-to-move key
+# 4 castling keys
+# 8 ep file keys
+
+PIECE_KEYS = [[random.getrandbits(64) for _ in range(64)] for _ in range(12)]
+SIDE_KEY = random.getrandbits(64)  # if is white
+CASTLE_KEYS = [random.getrandbits(64) for _ in range(4)]  # KQkq
+EP_KEYS = [random.getrandbits(64) for _ in range(8)]  # ep file a-h
+
+
 # Initial chess board setup
 START_POS = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
