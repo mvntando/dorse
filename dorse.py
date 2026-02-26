@@ -75,6 +75,7 @@ class Position:
         self.bc = bc
         self.ep = ep
         self.sd = sd
+        
         self.wk: tuple[int, int] | None = None
         self.bk: tuple[int, int] | None = None
         
@@ -421,15 +422,19 @@ class Position:
         if piece.upper() == 'K':  # King moved -> lose both rights
             if is_white:
                 if self.wc != (0, 0):
-                    self.hash ^= CASTLE_KEYS[0]  # remove white queenside hash
-                    self.hash ^= CASTLE_KEYS[1]  # remove white kingside hash
+                    if self.wc[0] != 0:
+                        self.hash ^= CASTLE_KEYS[0]  # remove white queenside hash
+                    if self.wc[1] != 0:
+                        self.hash ^= CASTLE_KEYS[1]  # remove white kingside hash
 
                     self.wc = (0, 0)
                 self.wk = (r1, c1)
             else:
                 if self.bc != (0, 0):
-                    self.hash ^= CASTLE_KEYS[2]  # remove black queenside hash
-                    self.hash ^= CASTLE_KEYS[3]  # remove black kingside hash
+                    if self.bc[0] != 0:
+                        self.hash ^= CASTLE_KEYS[2]  # remove black queenside hash
+                    if self.bc[1] != 0:
+                        self.hash ^= CASTLE_KEYS[3]  # remove black kingside hash
 
                     self.bc = (0, 0)
                 self.bk = (r1, c1)

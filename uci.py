@@ -2,7 +2,7 @@
 import sys
 from dorse import Position
 import utils
-import search
+from search import Searcher
 
 INIT_BOARD, WC, BC, EP, SD = utils.parse_fen(utils.START_POS)
 
@@ -56,7 +56,15 @@ def uci_loop():
                 except (IndexError, ValueError):
                     depth = None  # fallback to default if parsing fails
 
-            move = search.search(position, depth=depth)
+            movetime: float | None = None  # default time
+            if "movetime" in tokens:
+                try:
+                    time_index = tokens.index("movetime")
+                    movetime = float(tokens[time_index + 1]) / 1000.0  # convert ms to seconds
+                except (IndexError, ValueError):
+                    movetime = None  # fallback to default if parsing fails
+
+            move = Searcher(position).search(depth=depth, movetime=10)
             if move is None:
                 print("bestmove 0000")
                 continue

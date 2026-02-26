@@ -1,4 +1,5 @@
 import pytest
+import random
 from dorse import Position, Move
 import utils
 from helpers import coord, move_str
@@ -284,7 +285,7 @@ def test_gen_captures_black():
 
 # PUSH TESTS
 def test_push_white():
-    board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+    board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
     pos = Position(board, wc, bc, ep, sd)
 
     move = Move(coord('e2'), coord('e4'), None, 'P')  # e2 to e4
@@ -496,8 +497,6 @@ def test_push_pop():
     assert pos.board == INIT_BOARD
 
 # Test hash consistency after push and pop
-import random
-
 def test_hash_push_pop():
     board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
     pos = Position(board, wc, bc, ep, sd)
@@ -533,7 +532,7 @@ def test_hash_push():
 
 # POP TESTS
 def test_pop_white():
-    board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+    board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
     pos = Position(board, wc, bc, ep, sd)
     orig_pos = pos.copy()
 
@@ -629,7 +628,7 @@ def test_pop_promotion_black():
     assert pos == orig_pos
 
 def test_pop_full():
-    board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+    board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
     pos = Position(board, wc, bc, ep, sd)
     orig_pos = pos.copy()
 
@@ -643,7 +642,7 @@ def test_pop_full():
         assert after == orig_pos, f"Position corrupted by move: {move_str(move)}"
 
 def test_pop_many():
-    board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+    board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
     pos = Position(board, wc, bc, ep, sd)
     orig_pos = pos.copy()
 
@@ -744,7 +743,7 @@ def test_make_uci_move_pseudo_illegal():
         pos.make_uci_move("e2e5")  # illegal
 
 def test_make_uci_move_chess960():
-    fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    fen = utils.START_POS
     board, wc, bc, ep, sd = utils.parse_fen(fen)
     pos = Position(board, wc, bc, ep, sd)
 
