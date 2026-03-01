@@ -1,3 +1,4 @@
+from typing import cast
 from utils import DIRECTIONS, SLIDING, attacked, PIECE_INDEX, PIECE_KEYS, SIDE_KEY, CASTLE_KEYS, EP_KEYS
 
 # GAME LOGIC
@@ -53,8 +54,17 @@ class Undo:
         self.hash: int = 0
 
 
+class UndoNull:
+    __slots__ = ('ep', 'sd', 'hash')
+
+    def __init__(self, ep: tuple[int, int] | None, sd: str, hash: int):
+        self.ep = ep
+        self.sd = sd
+        self.hash = hash
+
+
 class Position:
-    __slots__ = ('board', 'wc', 'bc', 'ep', 'sd', 'wk', 'bk', 'score', 'history', 'hash')
+    __slots__ = ('board', 'wc', 'bc', 'ep', 'sd', 'wk', 'bk', 'score', 'stack', 'hash')
 
     # A state of a chess game
     # board   -- the current board state as a numpy array. !IMPOTANT - board is a cartesian grid
@@ -66,7 +76,7 @@ class Position:
     # bk      -- black king square (for quick in_check checks)
 
     # score   -- the board evaluation (none unless incremental evaluation is enabled)
-    # history -- stack of Undo objects for undoing moves
+    # stack -- stack of Undo objects for undoing moves
     # hash    -- zobrist hash of the position
 
     def __init__(self, board: list[list[str]], wc: tuple[int, int], bc: tuple[int, int], ep: tuple[int, int] | None, sd: str):
@@ -80,7 +90,7 @@ class Position:
         self.bk: tuple[int, int] | None = None
         
         self.score: int | None = None  # Reserved for future incremental evaluation
-        self.history: list[Undo] = []
+        self.stack: list[Undo | UndoNull] = []
         self.hash = self.gen_hash()  # Zobrist hash
 
         # Initialize king squares
@@ -322,7 +332,7 @@ class Position:
         # --- Push undo ---
         undo = Undo(move, self.wc, self.bc, self.ep, self.sd, self.wk, self.bk,)
         undo.hash = self.hash
-        self.history.append(undo)
+        self.stack.append(undo)
 
         src, dst, promo = move.src, move.dst, move.promo
         r0, c0 = src
@@ -479,7 +489,7 @@ class Position:
         return self
     
     def pop(self):
-        undo = self.history.pop()
+        undo = cast(Undo, self.stack.pop())
 
         move = undo.move
         r0, c0 = move.src
@@ -519,6 +529,27 @@ class Position:
         
         return self
 
+    def push_null(self):
+        undo = UndoNull(self.ep, self.sd, self.hash)
+        self.stack.append(undo)
+
+        if self.ep is not None:
+            self.hash ^= EP_KEYS[self.ep[1]]
+            self.ep = None
+
+        self.hash ^= SIDE_KEY
+        self.sd = 'b' if self.sd == 'w' else 'w'
+
+        return self
+    
+    def pop_null(self):
+        undo = cast(UndoNull, self.stack.pop())
+        self.ep = undo.ep
+        self.sd = undo.sd
+        self.hash = undo.hash
+
+        return self
+    
     def in_check(self, sd: str) -> bool:
         """
         Check if the king of side `sd` is attacked by opponent.

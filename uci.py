@@ -64,7 +64,7 @@ def uci_loop():
                 except (IndexError, ValueError):
                     movetime = None  # fallback to default if parsing fails
 
-            move = Searcher(position).search(depth=depth, movetime=10)
+            move = Searcher(position).search(depth=depth, movetime=movetime)
             if move is None:
                 print("bestmove 0000")
                 continue
@@ -81,7 +81,7 @@ def uci_loop():
             print("")
             break
 
-def parse_position(line):
+def parse_position(line: str) -> Position | None:
     tokens = line.split()
 
     if tokens[1] == "startpos":

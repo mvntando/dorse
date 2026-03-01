@@ -39,7 +39,7 @@ def test_uci_loop_go(monkeypatch, capsys):
         "uci",
         "isready",
         "position startpos",
-        "go",
+        "go movetime 1000",
         "quit"
     ]) + "\n"
 
