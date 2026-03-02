@@ -12,10 +12,11 @@ def print_id():
     print("id country Bulawayo")
 
 def print_options():
-    # Add engine options here if needed
+    # Engine options
     pass
 
 def uci_loop():
+    searcher = Searcher()
     position = None
 
     while True:
@@ -36,8 +37,8 @@ def uci_loop():
             print("readyok")
 
         elif line == "ucinewgame":
-            # Always start fresh
-            position = Position([row[:] for row in INIT_BOARD], WC, BC, EP, SD)
+            # Reset any internal state for a new game
+            searcher = Searcher()
 
         elif line.startswith("position"):
             position = parse_position(line)
@@ -47,24 +48,24 @@ def uci_loop():
                 print("bestmove 0000")
                 continue
             
-            depth: int | None = None  # default depth
+            depth: int | None = None
             tokens = line.split()
             if "depth" in tokens:
                 try:
                     depth_index = tokens.index("depth")
                     depth = int(tokens[depth_index + 1])
                 except (IndexError, ValueError):
-                    depth = None  # fallback to default if parsing fails
+                    depth = None
 
-            movetime: float | None = None  # default time
+            movetime: float | None = None
             if "movetime" in tokens:
                 try:
                     time_index = tokens.index("movetime")
-                    movetime = float(tokens[time_index + 1]) / 1000.0  # convert ms to seconds
+                    movetime = float(tokens[time_index + 1]) / 1000.0  # convert ms to seconds (time module uses seconds)
                 except (IndexError, ValueError):
-                    movetime = None  # fallback to default if parsing fails
+                    movetime = None
 
-            move = Searcher(position).search(depth=depth, movetime=movetime)
+            move = searcher.search(position, depth=depth, movetime=movetime)
             if move is None:
                 print("bestmove 0000")
                 continue

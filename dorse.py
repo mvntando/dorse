@@ -24,6 +24,12 @@ class Move:
     def __hash__(self):
         return hash((self.src, self.dst, self.promo))
 
+    def uci(self):
+        src = chr(ord('a') + self.src[1]) + str(self.src[0] + 1)
+        dst = chr(ord('a') + self.dst[1]) + str(self.dst[0] + 1)
+        promo = self.promo if self.promo else ''
+        return f"{src}{dst}{promo}"
+
 
 class Undo:
     __slots__ = ('move', 'wc', 'bc', 'ep', 'sd', 'ep_sq', 'castle', 'wk', 'bk', 'hash')

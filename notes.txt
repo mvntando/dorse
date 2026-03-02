@@ -15,13 +15,11 @@
     BOARD = np.flipud(BOARD) # NOTE: this board is flipped upside down for cartesian coordinates
 
 || faster:
-    position = Position([row[:] for row in INIT_BOARD], 0, WC, BC, EP, SD)
     remove gen_moves from uci loop
 
 || Testing:
     to print use:
-    assert after == before, f""
+    assert before == after, f"Expected {before}, got {after}"
 
-- move ordering, iterative deepening, tt table (zobrist hash), improve move ordering with tt best move
-
-- elif self.ep is not None and (r, c) == self.ep:  (check if its redundant in move generation)
+|| Rem:
+- push a little bit fragile

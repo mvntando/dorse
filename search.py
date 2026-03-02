@@ -25,30 +25,22 @@ class Searcher:
     HH: list[list[int]]
     KILLERS: list[list[Move | None]]
 
-    __slots__ = ("position", "TT", "HH", "KILLERS", "Nodes", "stop", "start_time", "time_limit")
+    __slots__ = ('TT', 'HH', 'KILLERS', 'Nodes', 'stop', 'start_time', 'time_limit')
 
-    def __init__(self, position: Position):
-        self.position = position
-
+    def __init__(self):
         self.TT = {}  # Transposition Table
         self.HH = [[0] * 64 for _ in range(12)]
         self.KILLERS = [[None, None] for _ in range(MAX_PLY)]
         self.Nodes = 0
 
-        self.stop = False
-        self.start_time = time.perf_counter()
-        self.time_limit = 0
-
-    def search(self, depth: int | None = None, movetime: float | None = None) -> Move | None:
+    def search(self, position: Position, depth: int | None = None, movetime: float | None = None) -> Move | None:
         """
         Search to find the best move.
         """
 
-        position = self.position
-        TT = self.TT
-        HH = self.HH
-        KILLERS = self.KILLERS
         self.Nodes = 0
+        self.stop = False
+        self.start_time = time.perf_counter()
 
         if depth is None:
             depth = MAX_DEPTH
@@ -58,21 +50,12 @@ class Searcher:
         else:
             self.time_limit = None
 
-        TT.clear()  # Clear transposition table for new search
-        for i in range(depth):  # Clear killer moves for new search
-            KILLERS[i][0] = None
-            KILLERS[i][1] = None
-        for p in range(12):  # Clear history heuristic table for new search
-            for sq in range(64):
-                HH[p][sq] //= 2
-
         best_move: Move | None = None
 
         for c_depth in range(1, depth + 1):  # Iterative deepening
             if self.time_up():
                 break
 
-            s_nodes = self.Nodes  # nodes at start of this iteration
             alpha = -INF
             beta = INF
 
@@ -96,7 +79,7 @@ class Searcher:
                     position.pop()
                     continue
 
-                score = -self.alphabeta(-beta, -alpha, c_depth - 1, 1)
+                score = -self.alphabeta(position, -beta, -alpha, c_depth - 1, 1)
                 position.pop()
 
                 if l_best is None or score > alpha:
@@ -109,26 +92,25 @@ class Searcher:
             if l_best is not None:
                 best_move = l_best
 
-            print(f"info depth {c_depth} nodes {self.Nodes - s_nodes} score {alpha}")
+            elapsed = int((time.perf_counter() - self.start_time) * 1000)
+            nps = int(self.Nodes * 1000 / elapsed) if elapsed > 0 else 0
+            print(f"info depth {c_depth} score cp {alpha} nodes {self.Nodes} time {elapsed} nps {nps} localbest {l_best.uci() if l_best else '0000'}")
 
-        print(f"Nodes: {self.Nodes}")
         return best_move
 
-    def alphabeta(self, alpha: int, beta: int, depth: int, ply: int) -> int:
+    def alphabeta(self, position: Position, alpha: int, beta: int, depth: int, ply: int) -> int:
         """
         Alpha-beta pruning search algorithm.
         """
 
         if self.stop:
             return 0
-
         if self.time_up():
             return 0
-
-        if depth == 0:
-            return self.qsearch(alpha, beta, ply)
         
-        position = self.position
+        if depth == 0:
+            return self.qsearch(position, alpha, beta, ply)
+        
         TT = self.TT
         HH = self.HH
         KILLERS = self.KILLERS
@@ -154,7 +136,7 @@ class Searcher:
         if depth >= 3 and not position.in_check(position.sd):
             R = 2
             position.push_null()
-            score = -self.alphabeta(-beta, -beta + 1, depth - 1 - R, ply + 1)
+            score = -self.alphabeta(position, -beta, -beta + 1, depth - 1 - R, ply + 1)
             position.pop_null()
             if score >= beta:
                 return beta
@@ -180,14 +162,13 @@ class Searcher:
 
             mover = position.sd
             position.push(move)
-
             if position.in_check(mover):
                 position.pop()
                 continue
 
             found = True
 
-            score = -self.alphabeta(-beta, -alpha, depth - 1, ply + 1)
+            score = -self.alphabeta(position, -beta, -alpha, depth - 1, ply + 1)
             position.pop()
 
             if score > best_score:
@@ -228,7 +209,7 @@ class Searcher:
 
         return best_score
 
-    def qsearch(self, alpha: int, beta: int, ply: int = 0) -> int:
+    def qsearch(self, position: Position, alpha: int, beta: int, ply: int = 0) -> int:
         """
         Quiescence search to evaluate "quiet" positions and avoid horizon effect.
         """
@@ -239,7 +220,6 @@ class Searcher:
         if self.time_up():
             return 0
 
-        position = self.position
         self.Nodes += 1
 
         score = Evaluator(position).evaluate()
@@ -259,7 +239,7 @@ class Searcher:
                 position.pop()
                 continue
 
-            score = -self.qsearch(-beta, -alpha, ply + 1)
+            score = -self.qsearch(position, -beta, -alpha, ply + 1)
             position.pop()
 
             if score >= beta:
