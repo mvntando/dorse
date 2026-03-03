@@ -24,8 +24,9 @@ class Searcher:
     tt: dict
     hh: list[list[int]]
     killers: list[list[Move | None]]
+    pv: list[list[Move | None]]
 
-    __slots__ = ('tt', 'hh', 'killers', 'evaluator', 'nodes', 'stop', 'start_time', 'time_limit')
+    __slots__ = ('tt', 'hh', 'killers', 'evaluator', 'nodes', 'pv', 'pv_len', 'stop', 'start_time', 'time_limit')
 
     def __init__(self):
         self.tt = {}
@@ -33,6 +34,8 @@ class Searcher:
         self.killers = [[None, None] for _ in range(MAX_PLY)]
         self.evaluator = Evaluator()
         self.nodes = 0
+        self.pv = [[None] * MAX_PLY for _ in range(MAX_PLY)]
+        self.pv_len = [0] * MAX_PLY
 
     def search(self, position: Position, depth: int | None = None, movetime: float | None = None) -> Move | None:
         """
@@ -60,15 +63,12 @@ class Searcher:
             alpha = -INF
             beta = INF
 
-            l_best = None  # local best move for this iteration
+            l_best = None
             moves = position.gen_moves()
             self.score_moves(moves, 0)
+            if best_move is not None and best_move in moves:
+                best_move.score = 10_000_000
             moves.sort(key=lambda m: m.score, reverse=True)
-
-            if best_move is not None:  # try best_move first from previous iteration
-                if best_move in moves:
-                    moves.remove(best_move)
-                    moves.insert(0, best_move)
 
             for move in moves:
                 if self.time_up():
@@ -83,9 +83,14 @@ class Searcher:
                 score = -self.alphabeta(position, -beta, -alpha, c_depth - 1, 1)
                 position.pop()
 
-                if l_best is None or score > alpha:
+                if score > alpha:
                     alpha = score
                     l_best = move
+
+                    self.pv[0][0] = move  # update PV
+                    for i in range(1, self.pv_len[1]):
+                        self.pv[0][i] = self.pv[1][i]
+                    self.pv_len[0] = self.pv_len[1]
 
             if self.stop:
                 break
@@ -95,7 +100,10 @@ class Searcher:
 
             elapsed = int((time.perf_counter() - self.start_time) * 1000)
             nps = int(self.nodes * 1000 / elapsed) if elapsed > 0 else 0
-            print(f"info depth {c_depth} score cp {alpha} nodes {self.nodes} time {elapsed} nps {nps} localbest {l_best.uci() if l_best else '0000'}")
+            pv_moves = self.pv[0][:self.pv_len[0]]
+            pv_str = " ".join(m.uci() for m in pv_moves if m)
+
+            print(f"info depth {c_depth} score cp {alpha} nodes {self.nodes} time {elapsed} nps {nps} pv {pv_str}")
 
         return best_move
 
@@ -116,6 +124,7 @@ class Searcher:
         hh = self.hh
         killers = self.killers
         self.nodes += 1
+        self.pv_len[ply] = ply
 
         og_alpha = alpha
         key = position.hash
@@ -148,14 +157,12 @@ class Searcher:
 
         moves = position.gen_moves()
         self.score_moves(moves, ply)
-        moves.sort(key=lambda m: m.score, reverse=True)
-
         # tt move ordering
         if entry:
             tt_move = tt[key][3]
             if tt_move in moves:
-                moves.remove(tt_move)
-                moves.insert(0, tt_move)
+                tt_move.score = 10_000_000
+        moves.sort(key=lambda m: m.score, reverse=True)
 
         for move in moves:
             if self.stop:
@@ -194,6 +201,11 @@ class Searcher:
             if score > alpha:
                 alpha = score
 
+                self.pv[ply][ply] = move  # update PV
+                for i in range(ply + 1, self.pv_len[ply + 1]):
+                    self.pv[ply][i] = self.pv[ply + 1][i]
+                self.pv_len[ply] = self.pv_len[ply + 1]
+
         if not found:
             if position.in_check(position.sd):
                 return -MATE + ply  # mate
@@ -203,6 +215,8 @@ class Searcher:
         # tt store
         if best_score <= og_alpha:
             flag = UPPERBOUND
+        elif best_score >= beta:
+            flag = LOWERBOUND
         else:
             flag = EXACT
 
@@ -210,18 +224,18 @@ class Searcher:
 
         return best_score
 
-    def qsearch(self, position: Position, alpha: int, beta: int, ply: int = 0) -> int:
+    def qsearch(self, position: Position, alpha: int, beta: int, ply: int) -> int:
         """
         Quiescence search to evaluate "quiet" positions and avoid horizon effect.
         """
 
         if self.stop:
             return 0
-
         if self.time_up():
             return 0
 
         self.nodes += 1
+        self.pv_len[ply] = ply
 
         score = self.evaluator.evaluate(position)
         if score >= beta:
