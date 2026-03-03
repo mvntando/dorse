@@ -15,30 +15,31 @@ MATE = 20_000
 MAX_DEPTH = 64
 MAX_PLY = 64
 
-# TT entry flags
+# tt entry flags
 EXACT = 0
 LOWERBOUND = 1
 UPPERBOUND = 2
 
 class Searcher:
-    TT: dict
-    HH: list[list[int]]
-    KILLERS: list[list[Move | None]]
+    tt: dict
+    hh: list[list[int]]
+    killers: list[list[Move | None]]
 
-    __slots__ = ('TT', 'HH', 'KILLERS', 'Nodes', 'stop', 'start_time', 'time_limit')
+    __slots__ = ('tt', 'hh', 'killers', 'evaluator', 'nodes', 'stop', 'start_time', 'time_limit')
 
     def __init__(self):
-        self.TT = {}  # Transposition Table
-        self.HH = [[0] * 64 for _ in range(12)]
-        self.KILLERS = [[None, None] for _ in range(MAX_PLY)]
-        self.Nodes = 0
+        self.tt = {}
+        self.hh = [[0] * 64 for _ in range(12)]
+        self.killers = [[None, None] for _ in range(MAX_PLY)]
+        self.evaluator = Evaluator()
+        self.nodes = 0
 
     def search(self, position: Position, depth: int | None = None, movetime: float | None = None) -> Move | None:
         """
         Search to find the best move.
         """
 
-        self.Nodes = 0
+        self.nodes = 0
         self.stop = False
         self.start_time = time.perf_counter()
 
@@ -52,7 +53,7 @@ class Searcher:
 
         best_move: Move | None = None
 
-        for c_depth in range(1, depth + 1):  # Iterative deepening
+        for c_depth in range(1, depth + 1):  # ID
             if self.time_up():
                 break
 
@@ -93,8 +94,8 @@ class Searcher:
                 best_move = l_best
 
             elapsed = int((time.perf_counter() - self.start_time) * 1000)
-            nps = int(self.Nodes * 1000 / elapsed) if elapsed > 0 else 0
-            print(f"info depth {c_depth} score cp {alpha} nodes {self.Nodes} time {elapsed} nps {nps} localbest {l_best.uci() if l_best else '0000'}")
+            nps = int(self.nodes * 1000 / elapsed) if elapsed > 0 else 0
+            print(f"info depth {c_depth} score cp {alpha} nodes {self.nodes} time {elapsed} nps {nps} localbest {l_best.uci() if l_best else '0000'}")
 
         return best_move
 
@@ -111,18 +112,18 @@ class Searcher:
         if depth == 0:
             return self.qsearch(position, alpha, beta, ply)
         
-        TT = self.TT
-        HH = self.HH
-        KILLERS = self.KILLERS
-        self.Nodes += 1
+        tt = self.tt
+        hh = self.hh
+        killers = self.killers
+        self.nodes += 1
 
         og_alpha = alpha
         key = position.hash
-        entry = TT.get(key)
+        entry = tt.get(key)
 
-        # TT probe
+        # tt probe
         if entry:
-            entry_depth, entry_score, entry_flag, entry_move = TT[key]
+            entry_depth, entry_score, entry_flag, entry_move = tt[key]
 
             if entry_depth >= depth:
                 if entry_flag == EXACT:
@@ -149,9 +150,9 @@ class Searcher:
         self.score_moves(moves, ply)
         moves.sort(key=lambda m: m.score, reverse=True)
 
-        # TT move ordering
+        # tt move ordering
         if entry:
-            tt_move = TT[key][3]
+            tt_move = tt[key][3]
             if tt_move in moves:
                 moves.remove(tt_move)
                 moves.insert(0, tt_move)
@@ -176,17 +177,17 @@ class Searcher:
                 best_move = move
 
             if score >= beta:
-                TT[key] = (depth, score, LOWERBOUND, best_move)
+                tt[key] = (depth, score, LOWERBOUND, best_move)
 
                 if move.captured is None:
                     # Update heuristics
                     piece_index = PIECE_INDEX[move.piece]
                     to_sq = move.dst[0] * 8 + move.dst[1]
-                    HH[piece_index][to_sq] += depth * depth
+                    hh[piece_index][to_sq] += depth * depth
 
-                    if KILLERS[ply][0] != move:
-                        KILLERS[ply][1] = KILLERS[ply][0]
-                        KILLERS[ply][0] = move
+                    if killers[ply][0] != move:
+                        killers[ply][1] = killers[ply][0]
+                        killers[ply][0] = move
 
                 return score
 
@@ -199,13 +200,13 @@ class Searcher:
             else:
                 return 0  # stalemate
 
-        # TT store
+        # tt store
         if best_score <= og_alpha:
             flag = UPPERBOUND
         else:
             flag = EXACT
 
-        TT[key] = (depth, best_score, flag, best_move)
+        tt[key] = (depth, best_score, flag, best_move)
 
         return best_score
 
@@ -220,15 +221,19 @@ class Searcher:
         if self.time_up():
             return 0
 
-        self.Nodes += 1
+        self.nodes += 1
 
-        score = Evaluator(position).evaluate()
+        score = self.evaluator.evaluate(position)
         if score >= beta:
             return beta
         if score > alpha:
             alpha = score
+
+        if position.in_check(position.sd):
+            moves = position.gen_moves()
+        else:
+            moves = position.gen_captures()
         
-        moves = position.gen_captures()
         self.score_moves(moves, ply)
         moves.sort(key=lambda m: m.score, reverse=True)
 
@@ -251,7 +256,7 @@ class Searcher:
 
     # Score moves using MVV-LVA and store in move.score
     def score_moves(self, moves: list[Move], ply: int) -> None:
-        KILLERS = self.KILLERS
+        killers = self.killers
         for move in moves:
             move.score = 0
             # captures: mvv-lva
@@ -260,19 +265,18 @@ class Searcher:
                 victim = move.captured
                 move.score = 100_000 + PIECE_VALUE[victim] * 10 - PIECE_VALUE[attacker]
 
-            # killer moves
-            else:
-                if KILLERS[ply][0] is not None and move == KILLERS[ply][0]:
+            else:  # killer moves
+                if killers[ply][0] is not None and move == killers[ply][0]:
                     move.score = 90_000
-                elif KILLERS[ply][1] is not None and move == KILLERS[ply][1]:
+                elif killers[ply][1] is not None and move == killers[ply][1]:
                     move.score = 80_000
 
-                else:
+                else:  # history heuristic
                     piece_index = PIECE_INDEX[move.piece]
                     to_sq = move.dst[0] * 8 + move.dst[1]
-                    move.score += self.HH[piece_index][to_sq]
+                    move.score += self.hh[piece_index][to_sq]
 
-    def time_up(self):
+    def time_up(self) -> bool:
         if self.time_limit is None:
             return False
         if time.perf_counter() - self.start_time >= self.time_limit:

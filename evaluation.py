@@ -14,14 +14,9 @@ PIECE_VALUES = {
 PIECE_VALUE = {p: abs(v) for p, v in PIECE_VALUES.items()}
 
 class Evaluator:
-    __slots__ = ('position')
+    __slots__ = ()
 
-    def __init__(self, position: Position):
-        self.position = position
-
-
-    def evaluate(self) -> int:
-        position = self.position
+    def evaluate(self, position: Position) -> int:
         score = 0
         for rows in position.board:
             for piece in rows:
