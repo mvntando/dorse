@@ -22,7 +22,7 @@ class Searcher:
     killers: list[list[Move | None]]
     pv: list[list[Move | None]]
 
-    __slots__ = ('tt', 'tt_size', 'tt_mask', 'hh', 'killers', 'evaluator', 'nodes', 'pv', 'pv_len', 'stop', 'start_time', 'time_limit')
+    __slots__ = ('tt_size', 'tt_mask', 'tt', 'hh', 'killers', 'evaluator', 'nodes', 'pv', 'pv_len', 'stop', 'start_time', 'time_limit')
 
     def __init__(self):
         self.tt_size = 1 << 19  # 512K entries
@@ -118,7 +118,6 @@ class Searcher:
         if depth <= 0:
             return self.qsearch(position, alpha, beta, ply)
         
-        tt = self.tt
         hh = self.hh
         killers = self.killers
         self.nodes += 1
@@ -140,7 +139,7 @@ class Searcher:
                 elif entry_flag == UPPERBOUND and entry_score <= alpha:
                     return entry_score
                 
-        # Null Move Pruning
+        # NMP
         if depth >= 3 and not position.in_check(position.sd):
             R = 2
             position.push_null()
@@ -164,7 +163,7 @@ class Searcher:
                     break
         moves.sort(key=lambda m: m.score, reverse=True)
 
-        for i, move in enumerate(moves):
+        for move in moves:
             if self.stop:
                 return 0
             
@@ -176,6 +175,7 @@ class Searcher:
 
             found += 1
 
+            # LMR
             lmr = (depth >= 3 and found > 4 and not move.captured and not move.promo and not position.in_check(position.sd))
             if lmr:
                 reduction = max(1, int(math.log(depth) * math.log(found) / 2))
