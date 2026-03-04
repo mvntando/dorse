@@ -1,3 +1,4 @@
+# Basic chess engine components
 from typing import cast
 from utils import DIRECTIONS, SLIDING, attacked, PIECE_INDEX, PIECE_KEYS, SIDE_KEY, CASTLE_KEYS, EP_KEYS
 

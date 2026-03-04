@@ -1,5 +1,5 @@
 || engine
-    classical search + NNUE evaluation
+- classical search + evaluation
 
 || board
     BOARD = np.array([
@@ -15,11 +15,18 @@
     BOARD = np.flipud(BOARD) # NOTE: this board is flipped upside down for cartesian coordinates
 
 || faster:
-    remove gen_moves from uci loop
+- remove gen_moves from uci loop
+- add delta pruning to qsearch for performance boost
+
 
 || Testing:
-    to print use:
+- to print use:
     assert before == after, f"Expected {before}, got {after}"
 
 || Rem:
 - push a little bit fragile
+- check extension:
+    if position.in_check(side):
+        depth += 1
+- git filter-repo --path project.txt --invert-paths
+- check tt hits, collisions

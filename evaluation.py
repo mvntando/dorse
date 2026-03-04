@@ -1,9 +1,4 @@
-# material
-# PST
-# pawn structure
-# king safety
-# mobility
-
+# Basic evaluation function based on material count
 from dorse import Position
 
 PIECE_VALUES = {

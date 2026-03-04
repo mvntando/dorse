@@ -1,9 +1,5 @@
-# minimax / alpha-beta
-# iterative deepening
-# quiescence
-# move ordering
-# transposition table
-
+# Basic alpha-beta search with iterative deepening
+import math
 import time
 from dorse import Position, Move
 from evaluation import Evaluator, PIECE_VALUE
@@ -119,7 +115,7 @@ class Searcher:
         if self.time_up():
             return 0
         
-        if depth == 0:
+        if depth <= 0:
             return self.qsearch(position, alpha, beta, ply)
         
         tt = self.tt
@@ -155,7 +151,7 @@ class Searcher:
 
         best_move = None
         best_score = -INF
-        found = False
+        found = 0
 
         moves = position.gen_moves()
         self.score_moves(moves, ply)
@@ -168,19 +164,27 @@ class Searcher:
                     break
         moves.sort(key=lambda m: m.score, reverse=True)
 
-        for move in moves:
+        for i, move in enumerate(moves):
             if self.stop:
                 return 0
-
+            
             mover = position.sd
             position.push(move)
             if position.in_check(mover):
                 position.pop()
                 continue
 
-            found = True
+            found += 1
 
-            score = -self.alphabeta(position, -beta, -alpha, depth - 1, ply + 1)
+            lmr = (depth >= 3 and found > 4 and not move.captured and not move.promo and not position.in_check(position.sd))
+            if lmr:
+                reduction = max(1, int(math.log(depth) * math.log(found) / 2))
+                score = -self.alphabeta(position, -alpha - 1, -alpha, depth - 1 - reduction, ply + 1)
+                if score > alpha:  # re-search full depth
+                    score = -self.alphabeta(position, -beta, -alpha, depth - 1, ply + 1)
+            else:
+                score = -self.alphabeta(position, -beta, -alpha, depth - 1, ply + 1)
+
             position.pop()
 
             if score > best_score:

@@ -1,3 +1,4 @@
+# Zobrist hashing and board utilities
 import random
 
 _rng = random.Random(0)  # isolated, deterministic RNG
