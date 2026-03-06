@@ -56,7 +56,7 @@ class Undo:
 
         self.wk = wk
         self.bk = bk
-        
+
         self.ep_sq: tuple[int, int] | None = None
         self.castle: int | None = None  # queenside: 0, kingside: 1 or None
 
@@ -95,10 +95,10 @@ class Position:
         self.bc = bc
         self.ep = ep
         self.sd = sd
-        
+
         self.wk: tuple[int, int] | None = None
         self.bk: tuple[int, int] | None = None
-        
+
         self.eval: int = evaluate(self)
         self.stack: list[Undo | UndoNull] = []
         self.hash = self.gen_hash()  # Zobrist hash
@@ -125,7 +125,7 @@ class Position:
             None if self.ep is None else self.ep,
             self.sd,
         )
-    
+
     def gen_hash(self) -> int:
         # Initialize hash
         h = 0
@@ -269,7 +269,7 @@ class Position:
                                 moves.append(Move((r0, c0), (back_row, 2), None, piece, None))
 
         return moves
-    
+
     # Return pseudo-legal capture moves at a given position.
     def gen_captures(self) -> list[Move]:
         DIRS = DIRECTIONS
@@ -334,8 +334,8 @@ class Position:
                         if target.isupper() != is_white:
                             moves.append(Move((r0,c0), (r,c), None, piece, target))
                         break
-        
-        return moves    
+
+        return moves
 
     def push(self, move: Move):
         # --- Push undo ---
@@ -368,7 +368,7 @@ class Position:
 
             self.board[r0][c1] = '.'
             self.eval -= piece_eval(captured_pawn, r0, c1)  # remove captured pawn from evaluation
-        
+
         # Remove captured piece hash
         elif captured:
             sq_to = r1 * 8 + c1
@@ -417,7 +417,7 @@ class Position:
         # --- Handle castling (moving rook as well) ---
         if piece.upper() == 'K' and abs(c1 - c0) == 2:
             rook = 'R' if is_white else 'r'
-            
+
             if c1 == 2:  # Queenside castling
                 undo.castle = 0  # Update undo castle flag
 
@@ -498,7 +498,7 @@ class Position:
                 self.hash ^= EP_KEYS[c0]  # add new ep hash
             else:
                 self.ep = None
-        
+
         else:
             self.ep = None
 
@@ -507,7 +507,7 @@ class Position:
         self.sd = 'b' if is_white else 'w'
 
         return self
-    
+
     def pop(self):
         undo = cast(Undo, self.stack.pop())
 
@@ -528,7 +528,7 @@ class Position:
         # --- Undo move ---
         self.board[r1][c1] = '.'
         self.board[r0][c0] = undo.move.piece
-            
+
         # --- Undo castling rook move ---
         if undo.castle is not None:
             if undo.castle == 1:  # kingside
@@ -547,7 +547,7 @@ class Position:
                 self.board[er][ec] = undo.move.captured
             else:
                 self.board[r1][c1] = undo.move.captured
-        
+
         return self
 
     def push_null(self):
@@ -562,7 +562,7 @@ class Position:
         self.sd = 'b' if self.sd == 'w' else 'w'
 
         return self
-    
+
     def pop_null(self):
         undo = cast(UndoNull, self.stack.pop())
         self.ep = undo.ep
@@ -570,13 +570,13 @@ class Position:
         self.hash = undo.hash
 
         return self
-    
+
     def in_check(self, sd: str) -> bool:
         """
         Check if the king of side `sd` is attacked by opponent.
         """
         # This must NOT depend on position.sd, because legality checks in search occur AFTER push(), when position.sd has already flipped.
-        
+
         king = self.wk if sd == 'w' else self.bk
         if king is None:
             raise ValueError(f"King square for {sd} is not set")

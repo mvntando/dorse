@@ -84,7 +84,7 @@ def parse_fen(fen: str) -> tuple[list[list[str]], tuple[int, int], tuple[int, in
 def attacked(pos, sq: tuple[int, int], opponent: str) -> bool:
     r, c = sq
     board = pos.board
-    
+
     # --- Precompute piece symbols and directions ---
     if opponent == 'w':
         pawn_dirs = DIRECTIONS['p_capture']
@@ -94,7 +94,7 @@ def attacked(pos, sq: tuple[int, int], opponent: str) -> bool:
         pawn_dirs = DIRECTIONS['P_capture']
         pawn, knight, king = 'p', 'n', 'k'
         sliders = {p.lower(): DIRECTIONS[p] for p in SLIDING}
-    
+
     # --- Sliding attacks ---
     for piece, dirs in sliders.items():
         for dr, dc in dirs:
@@ -114,17 +114,17 @@ def attacked(pos, sq: tuple[int, int], opponent: str) -> bool:
         rr, cc = r + dr, c + dc
         if 0 <= rr < 8 and 0 <= cc < 8 and board[rr][cc] == pawn:
             return True
-    
+
     # --- Knight attacks ---
     for dr, dc in DIRECTIONS['N']:
         rr, cc = r + dr, c + dc
         if 0 <= rr < 8 and 0 <= cc < 8 and board[rr][cc] == knight:
             return True
-    
+
     # --- King attacks ---
     for dr, dc in DIRECTIONS['K']:
         rr, cc = r + dr, c + dc
         if 0 <= rr < 8 and 0 <= cc < 8 and board[rr][cc] == king:
             return True
-    
+
     return False

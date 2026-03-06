@@ -91,7 +91,7 @@ def test_attacked_black():
     assert attacked(pos, coord('e5'), 'b') is True
     assert attacked(pos, coord('g6'), 'b') is True
     assert attacked(pos, coord('g8'), 'b') is True
-    
+
 def test_attacked_false_white():
     board, wc, bc, ep, sd = parse_fen("1n2k2r/1b1q2bp/8/8/8/8/1B1Q2BP/1N2K2R w - - 0 1")
     pos = dorse.Position(board, wc, bc, ep, sd)

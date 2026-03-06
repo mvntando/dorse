@@ -110,7 +110,7 @@ def test_parse_position_multiple_moves():
     assert pos.board[7][1] == '.'  # b8
     assert pos.board[5][2] == 'n'  # c6
     assert pos.sd == 'w'
-    
+
 def test_illegal_uci_move_raises():
     with pytest.raises(ValueError):
         parse_position("position startpos moves e2e5")

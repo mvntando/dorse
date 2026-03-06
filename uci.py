@@ -47,7 +47,7 @@ def uci_loop():
             if position is None:
                 print("bestmove 0000")
                 continue
-            
+
             depth: int | None = None
             tokens = line.split()
             if "depth" in tokens:

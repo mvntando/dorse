@@ -53,7 +53,7 @@ def test_gen_moves_start():
     }
 
     assert move_strs == expected_moves
-    
+
 def test_gen_moves_after_move_white():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppp1ppp/8/4p3/8/7P/PPPPPPP1/RNBQKBNR w KQkq - 0 1")
     pos = Position(board, wc, bc, ep, sd)
@@ -493,7 +493,7 @@ def test_push_pop():
     for move in moves:
         pos = pos.push(move)
         pos = pos.pop()
-    
+
     assert pos.board == INIT_BOARD
 
 # Test hash consistency
@@ -535,7 +535,7 @@ from evaluation import evaluate
 def test_push_eval():
     board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
     pos = Position(board, wc, bc, ep, sd)
-    
+
     for move in pos.gen_moves():
         pos.push(move)
         full = evaluate(pos)
@@ -545,7 +545,7 @@ def test_push_eval():
 def test_push_eval_deeper():
     board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
     pos = Position(board, wc, bc, ep, sd)
-    
+
     for move in pos.gen_moves():
         pos.push(move)
         for move2 in pos.gen_moves():
@@ -565,7 +565,7 @@ def test_pop_white():
     move = Move(coord('e2'), coord('e4'), None, 'P')
     pos = pos.push(move)
     assert not pos == orig_pos
-    
+
     pos = pos.pop()
     assert pos == orig_pos
 
@@ -577,7 +577,7 @@ def test_pop_black():
     move = Move(coord('e7'), coord('e5'), None, 'p')
     pos = pos.push(move)
     assert not pos == orig_pos
-    
+
     pos = pos.pop()
     assert pos == orig_pos
 
@@ -589,7 +589,7 @@ def test_pop_en_passant_white():
     move = Move(coord('e5'), coord('d6'), None, 'P', 'p')
     pos = pos.push(move)
     assert not pos == orig_pos
-    
+
     pos = pos.pop()
     assert pos == orig_pos
 
@@ -601,7 +601,7 @@ def test_pop_en_passant_black():
     move = Move(coord('d4'), coord('e3'), None, 'p', 'P')
     pos = pos.push(move)
     assert not pos == orig_pos
-    
+
     pos = pos.pop()
     assert pos == orig_pos
 
@@ -613,7 +613,7 @@ def test_pop_castling_white():
     move = Move(coord('e1'), coord('c1'), None, 'K')
     pos = pos.push(move)
     assert not pos == orig_pos
-    
+
     pos = pos.pop()
     assert pos == orig_pos
 
@@ -625,7 +625,7 @@ def test_pop_castling_black():
     move = Move(coord('e8'), coord('c8'), None, 'k')
     pos = pos.push(move)
     assert not pos == orig_pos
-    
+
     pos = pos.pop()
     assert pos.bc == orig_pos.bc
 

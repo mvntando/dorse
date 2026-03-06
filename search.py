@@ -113,10 +113,10 @@ class Searcher:
             return 0
         if self.time_up():
             return 0
-        
+
         if depth <= 0:
             return self.qsearch(position, alpha, beta, ply)
-        
+
         hh = self.hh
         killers = self.killers
         self.nodes += 1
@@ -137,7 +137,7 @@ class Searcher:
                     return entry_score
                 elif entry_flag == UPPERBOUND and entry_score <= alpha:
                     return entry_score
-                
+
         # NMP
         if depth >= 3 and not position.in_check(position.sd):
             R = 2
@@ -165,7 +165,7 @@ class Searcher:
         for move in moves:
             if self.stop:
                 return 0
-            
+
             mover = position.sd
             position.push(move)
             if position.in_check(mover):
@@ -254,7 +254,7 @@ class Searcher:
             moves = position.gen_moves()
         else:
             moves = position.gen_captures()
-        
+
         self.score_moves(moves, ply)
         moves.sort(key=lambda m: m.score, reverse=True)
 
@@ -272,9 +272,9 @@ class Searcher:
                 return beta
             if score > alpha:
                 alpha = score
-    
+
         return alpha
-    
+
     def tt_store(self, depth: int, score: int, flag: int, move: Move | None, key: int) -> None:
         idx = key & self.tt_mask
         existing = self.tt[idx]
