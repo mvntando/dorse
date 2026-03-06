@@ -2,7 +2,7 @@
 import math
 import time
 from dorse import Position, Move
-from evaluation import Evaluator, PIECE_VALUE
+from evaluation import PIECE_VALUE
 from utils import PIECE_INDEX
 
 INF = 1_000_000
@@ -22,7 +22,7 @@ class Searcher:
     killers: list[list[Move | None]]
     pv: list[list[Move | None]]
 
-    __slots__ = ('tt_size', 'tt_mask', 'tt', 'hh', 'killers', 'evaluator', 'nodes', 'pv', 'pv_len', 'stop', 'start_time', 'time_limit')
+    __slots__ = ('tt_size', 'tt_mask', 'tt', 'hh', 'killers', 'nodes', 'pv', 'pv_len', 'stop', 'start_time', 'time_limit')
 
     def __init__(self):
         self.tt_size = 1 << 19  # 512K entries
@@ -30,7 +30,6 @@ class Searcher:
         self.tt = [None] * self.tt_size
         self.hh = [[0] * 64 for _ in range(12)]
         self.killers = [[None, None] for _ in range(MAX_PLY)]
-        self.evaluator = Evaluator()
         self.nodes = 0
         self.pv = [[None] * MAX_PLY for _ in range(MAX_PLY)]
         self.pv_len = [0] * MAX_PLY
@@ -245,7 +244,7 @@ class Searcher:
         self.nodes += 1
         self.pv_len[ply] = ply
 
-        score = self.evaluator.evaluate(position)
+        score = position.eval if position.sd == 'w' else -position.eval
         if score >= beta:
             return beta
         if score > alpha:

@@ -1,4 +1,3 @@
-import numpy as np
 import dorse
 from utils import parse_fen, attacked
 from helpers import coord

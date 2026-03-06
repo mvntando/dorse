@@ -496,8 +496,20 @@ def test_push_pop():
     
     assert pos.board == INIT_BOARD
 
-# Test hash consistency after push and pop
-def test_hash_push_pop():
+# Test hash consistency
+def test_push_hash():
+    board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
+    pos = Position(board, wc, bc, ep, sd)
+
+    for _ in range(1000):
+        moves = pos.gen_moves()
+        if not moves:
+            break
+        pos.push(random.choice(moves))
+
+    assert pos.hash == pos.gen_hash()
+
+def test_push_pop_hash():
     board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
     pos = Position(board, wc, bc, ep, sd)
     original_hash = pos.hash
@@ -517,17 +529,31 @@ def test_hash_push_pop():
 
     assert pos.hash == original_hash
 
-def test_hash_push():
+from evaluation import evaluate
+
+# Test incremental evaluation consistency
+def test_push_eval():
     board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
     pos = Position(board, wc, bc, ep, sd)
+    
+    for move in pos.gen_moves():
+        pos.push(move)
+        full = evaluate(pos)
+        assert pos.eval == full, f"move={move.uci()} incremental={pos.eval} full={full}"
+        pos.pop()
 
-    for _ in range(1000):
-        moves = pos.gen_moves()
-        if not moves:
-            break
-        pos.push(random.choice(moves))
-
-    assert pos.hash == pos.gen_hash()
+def test_push_eval_deeper():
+    board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
+    pos = Position(board, wc, bc, ep, sd)
+    
+    for move in pos.gen_moves():
+        pos.push(move)
+        for move2 in pos.gen_moves():
+            pos.push(move2)
+            full = evaluate(pos)
+            assert pos.eval == full, f"move={move.uci()} move2={move2.uci()} incremental={pos.eval} full={full}"
+            pos.pop()
+        pos.pop()
 
 
 # POP TESTS

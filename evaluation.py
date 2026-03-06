@@ -1,5 +1,4 @@
 # Basic evaluation function based on material count
-from dorse import Position
 
 PIECE_VALUES = {
     'P': 100, 'N': 320, 'B': 330, 'R': 500, 'Q': 900, 'K': 20000,
@@ -85,16 +84,16 @@ PST = {
     'K': KING_PST[::-1],
 }
 
-class Evaluator:
-    __slots__ = ()
-    def evaluate(self, position: Position) -> int:
-        score = 0
-        for r, row in enumerate(position.board):
-            for c, piece in enumerate(row):
-                if piece != '.':
-                    score += PIECE_VALUES[piece]
-                    if piece.isupper():  # White
-                        score += PST[piece][r][c]
-                    else:  # Black — mirror vertically
-                        score -= PST[piece.upper()][7 - r][c]
-        return score if position.sd == 'w' else -score
+def piece_eval(piece, r, c) -> int:
+    if piece.isupper():
+        return PIECE_VALUES[piece] + PST[piece][r][c]
+    else:
+        return PIECE_VALUES[piece] - PST[piece.upper()][7 - r][c]
+
+def evaluate(position) -> int:
+    score = 0
+    for r, row in enumerate(position.board):
+        for c, piece in enumerate(row):
+            if piece != '.':
+                score += piece_eval(piece, r, c)
+    return score

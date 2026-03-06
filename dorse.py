@@ -1,5 +1,6 @@
 # Basic chess engine components
 from typing import cast
+from evaluation import evaluate, piece_eval
 from utils import DIRECTIONS, SLIDING, attacked, PIECE_INDEX, PIECE_KEYS, SIDE_KEY, CASTLE_KEYS, EP_KEYS
 
 # GAME LOGIC
@@ -33,7 +34,7 @@ class Move:
 
 
 class Undo:
-    __slots__ = ('move', 'wc', 'bc', 'ep', 'sd', 'ep_sq', 'castle', 'wk', 'bk', 'hash')
+    __slots__ = ('move', 'wc', 'bc', 'ep', 'sd', 'ep_sq', 'castle', 'wk', 'bk', 'eval', 'hash')
 
     # This class represents the information needed to undo a move.
     # move      -- the move being undone
@@ -58,6 +59,8 @@ class Undo:
         
         self.ep_sq: tuple[int, int] | None = None
         self.castle: int | None = None  # queenside: 0, kingside: 1 or None
+
+        self.eval: int = 0
         self.hash: int = 0
 
 
@@ -71,10 +74,10 @@ class UndoNull:
 
 
 class Position:
-    __slots__ = ('board', 'wc', 'bc', 'ep', 'sd', 'wk', 'bk', 'score', 'stack', 'hash')
+    __slots__ = ('board', 'wc', 'bc', 'ep', 'sd', 'wk', 'bk', 'eval', 'stack', 'hash')
 
     # A state of a chess game
-    # board   -- the current board state as a numpy array. !IMPOTANT - board is a cartesian grid
+    # board   -- the current board state as a list of lists !IMPOTANT - board is a cartesian grid
     # wc      -- white castling rights, [left/queen side, right/king side]
     # bc      -- black castling rights, [left/queen side, right/king side]
     # ep      -- the en passant square
@@ -96,7 +99,7 @@ class Position:
         self.wk: tuple[int, int] | None = None
         self.bk: tuple[int, int] | None = None
         
-        self.score: int | None = None  # Reserved for future incremental evaluation
+        self.eval: int = evaluate(self)
         self.stack: list[Undo | UndoNull] = []
         self.hash = self.gen_hash()  # Zobrist hash
 
@@ -114,7 +117,6 @@ class Position:
             return False
         return (all(r1 == r2 for r1, r2 in zip(self.board, other.board)) and self.wc == other.wc and self.bc == other.bc and self.ep == other.ep and self.sd == other.sd)
 
-    # DEBUG: remove later
     def copy(self) -> 'Position':
         return Position(
             [row[:] for row in self.board],  # Deep copy of board
@@ -158,7 +160,7 @@ class Position:
 
         return h
 
-    # Return legal moves for at a given position.
+    # Return legal moves a given position.
     def gen_moves(self) -> list[Move]:
         DIRS = DIRECTIONS # local alias
 
@@ -338,6 +340,7 @@ class Position:
     def push(self, move: Move):
         # --- Push undo ---
         undo = Undo(move, self.wc, self.bc, self.ep, self.sd, self.wk, self.bk,)
+        undo.eval = self.eval
         undo.hash = self.hash
         self.stack.append(undo)
 
@@ -364,11 +367,13 @@ class Position:
             self.hash ^= PIECE_KEYS[PIECE_INDEX[captured_pawn]][sq_ep]
 
             self.board[r0][c1] = '.'
+            self.eval -= piece_eval(captured_pawn, r0, c1)  # remove captured pawn from evaluation
         
         # Remove captured piece hash
         elif captured:
             sq_to = r1 * 8 + c1
             self.hash ^= PIECE_KEYS[PIECE_INDEX[captured]][sq_to]
+            self.eval -= piece_eval(captured, r1, c1)  # remove captured piece from evaluation
 
         # --- Update castling rights if rook was captured ---
         if captured and captured.upper() == 'R':
@@ -396,6 +401,8 @@ class Position:
         # --- Move piece ---
         self.board[r1][c1] = piece
         self.board[r0][c0] = '.'
+        self.eval -= piece_eval(piece, r0, c0)  # Icremental evaluation, piece leaving src, arriving dst
+        self.eval += piece_eval(piece, r1, c1)
 
         # --- Handle promotion ---
         if promo is not None:
@@ -404,6 +411,8 @@ class Position:
             self.hash ^= PIECE_KEYS[PIECE_INDEX[promo]][sq_to]  # add promoted piece hash
 
             self.board[r1][c1] = promo
+            self.eval -= piece_eval(piece, r1, c1)  # remove pawn value at dst and add promo value
+            self.eval += piece_eval(promo, r1, c1)
 
         # --- Handle castling (moving rook as well) ---
         if piece.upper() == 'K' and abs(c1 - c0) == 2:
@@ -421,6 +430,8 @@ class Position:
                 # Update board
                 self.board[r1][3] = rook
                 self.board[r1][0] = '.'
+                self.eval -= piece_eval(rook, r1, 0)  # update rook eval
+                self.eval += piece_eval(rook, r1, 3)
 
             else:  # Kingside castling
                 undo.castle = 1  # Update undo castle flag
@@ -434,6 +445,8 @@ class Position:
                 # Update board
                 self.board[r1][5] = rook
                 self.board[r1][7] = '.'
+                self.eval -= piece_eval(rook, r1, 7)  # update rook eval
+                self.eval += piece_eval(rook, r1, 5)
 
         # --- Update castling rights and king squares ---
         if piece.upper() == 'K':  # King moved -> lose both rights
@@ -509,6 +522,7 @@ class Position:
         self.ep = undo.ep
         self.wk = undo.wk
         self.bk = undo.bk
+        self.eval = undo.eval
         self.hash = undo.hash
 
         # --- Undo move ---
