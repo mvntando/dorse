@@ -80,51 +80,132 @@ def parse_fen(fen: str) -> tuple[list[list[str]], tuple[int, int], tuple[int, in
         ep = (rank, file)
     return board, wc, bc, ep, sd
 
+# Precompute attack patterns for knights, kings, pawns rays for sliding pieces
+KNIGHT_ATTACKS = [[] for _ in range(64)]
+for r in range(8):
+    for c in range(8):
+        sq = r*8 + c
+        for dr, dc in DIRECTIONS['N']:
+            rr, cc = r + dr, c + dc
+            if 0 <= rr < 8 and 0 <= cc < 8:
+                KNIGHT_ATTACKS[sq].append((rr, cc))
+
+KING_ATTACKS = [[] for _ in range(64)]
+for r in range(8):
+    for c in range(8):
+        sq = r*8 + c
+        for dr, dc in DIRECTIONS['K']:
+            rr, cc = r + dr, c + dc
+            if 0 <= rr < 8 and 0 <= cc < 8:
+                KING_ATTACKS[sq].append((rr, cc))
+
+PAWN_ATTACKS = {
+    'w': [[] for _ in range(64)],
+    'b': [[] for _ in range(64)]
+}
+for r in range(8):
+    for c in range(8):
+        sq = r*8 + c
+
+        # white pawns
+        for dr, dc in DIRECTIONS['P_capture']:
+            rr, cc = r + dr, c + dc
+            if 0 <= rr < 8 and 0 <= cc < 8:
+                PAWN_ATTACKS['w'][sq].append((rr, cc))
+
+        # black pawns
+        for dr, dc in DIRECTIONS['p_capture']:
+            rr, cc = r + dr, c + dc
+            if 0 <= rr < 8 and 0 <= cc < 8:
+                PAWN_ATTACKS['b'][sq].append((rr, cc))
+
+BISHOP_RAYS = [[] for _ in range(64)]
+for r in range(8):
+    for c in range(8):
+        sq = r*8 + c
+
+        rays = []
+
+        for dr, dc in DIRECTIONS['B']:
+            ray = []
+            rr, cc = r + dr, c + dc
+
+            while 0 <= rr < 8 and 0 <= cc < 8:
+                ray.append((rr, cc))
+                rr += dr
+                cc += dc
+
+            rays.append(ray)
+
+        BISHOP_RAYS[sq] = rays
+
+ROOK_RAYS = [[] for _ in range(64)]
+for r in range(8):
+    for c in range(8):
+        sq = r*8 + c
+
+        rays = []
+
+        for dr, dc in DIRECTIONS['R']:
+            ray = []
+            rr, cc = r + dr, c + dc
+
+            while 0 <= rr < 8 and 0 <= cc < 8:
+                ray.append((rr, cc))
+                rr += dr
+                cc += dc
+
+            rays.append(ray)
+
+        ROOK_RAYS[sq] = rays
+
 # Check if square is attacked by opponent's pieces
 def attacked(pos, sq: tuple[int, int], opponent: str) -> bool:
     r, c = sq
     board = pos.board
+    s = r*8 + c
 
-    # --- Precompute piece symbols and directions ---
     if opponent == 'w':
-        pawn_dirs = DIRECTIONS['p_capture']
         pawn, knight, king = 'P', 'N', 'K'
-        sliders = {p: DIRECTIONS[p] for p in SLIDING}
+        pawn_table = PAWN_ATTACKS['b']  # reverse lookup
+        rook, bishop, queen = 'R', 'B', 'Q'
     else:
-        pawn_dirs = DIRECTIONS['P_capture']
         pawn, knight, king = 'p', 'n', 'k'
-        sliders = {p.lower(): DIRECTIONS[p] for p in SLIDING}
-
-    # --- Sliding attacks ---
-    for piece, dirs in sliders.items():
-        for dr, dc in dirs:
-            rr, cc = r + dr, c + dc
-            while 0 <= rr < 8 and 0 <= cc < 8:
-                sq_piece = board[rr][cc]
-                if sq_piece == '.':
-                    rr += dr
-                    cc += dc
-                    continue
-                if sq_piece == piece:
-                    return True
-                break  # blocked by another piece
+        pawn_table = PAWN_ATTACKS['w']
+        rook, bishop, queen = 'r', 'b', 'q'
 
     # --- Pawn attacks ---
-    for dr, dc in pawn_dirs:
-        rr, cc = r + dr, c + dc
-        if 0 <= rr < 8 and 0 <= cc < 8 and board[rr][cc] == pawn:
+    for rr, cc in pawn_table[s]:
+        if board[rr][cc] == pawn:
             return True
 
     # --- Knight attacks ---
-    for dr, dc in DIRECTIONS['N']:
-        rr, cc = r + dr, c + dc
-        if 0 <= rr < 8 and 0 <= cc < 8 and board[rr][cc] == knight:
+    for rr, cc in KNIGHT_ATTACKS[s]:
+        if board[rr][cc] == knight:
             return True
 
     # --- King attacks ---
-    for dr, dc in DIRECTIONS['K']:
-        rr, cc = r + dr, c + dc
-        if 0 <= rr < 8 and 0 <= cc < 8 and board[rr][cc] == king:
+    for rr, cc in KING_ATTACKS[s]:
+        if board[rr][cc] == king:
             return True
+
+    # --- Sliding attacks ---
+    for ray in ROOK_RAYS[s]:  # rook/queen
+        for rr, cc in ray:
+            piece = board[rr][cc]
+            if piece == '.':
+                continue
+            if piece == rook or piece == queen:
+                return True
+            break  # blocked
+
+    for ray in BISHOP_RAYS[s]:  # bishop/queen
+        for rr, cc in ray:
+            piece = board[rr][cc]
+            if piece == '.':
+                continue
+            if piece == bishop or piece == queen:
+                return True
+            break  # blocked
 
     return False
