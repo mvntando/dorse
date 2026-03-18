@@ -38,7 +38,6 @@ class Undo:
 
     # This class represents the information needed to undo a move.
     # move      -- the move being undone
-    # piece     -- the piece that was moved (for undoing promotion)
     # wc, bc    -- castling rights before the move
     # ep        -- en passant square before the move
     # sd        -- side to move before the move
