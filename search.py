@@ -1,7 +1,7 @@
 # Basic alpha-beta search with iterative deepening
 import math
 import time
-from dorse import Position, Move
+from dorse import Position, Move, WHITE
 from evaluation import PIECE_VALUE
 from utils import PIECE_INDEX
 
@@ -244,7 +244,7 @@ class Searcher:
         self.nodes += 1
         self.pv_len[ply] = ply
 
-        score = position.eval if position.sd == 'w' else -position.eval
+        score = position.eval if position.sd == WHITE else -position.eval
         if score >= beta:
             return beta
         if score > alpha:

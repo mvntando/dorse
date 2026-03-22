@@ -21,31 +21,23 @@ PIECE_INDEX = {
 }
 
 
+WHITE = 1
+BLACK = -1
+
+# Board integer representation (white = +ve, black = -ve)
+EMPTY  = 0
+PAWN   = 1
+KNIGHT = 2
+BISHOP = 3
+ROOK   = 4
+QUEEN  = 5
+KING   = 6
+
 # Initial chess board setup
 START_POS = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
-# Lists of possible moves for each piece type
-DIRECTIONS = {
-    "N":  [(2, 1), (2, -1), (-2, 1), (-2, -1),
-           (1, 2), (1, -2), (-1, 2), (-1, -2)],  # Knight
-    "B":  [(1, 1), (1, -1), (-1, 1), (-1, -1)],  # Bishop
-    "R":  [(1, 0), (-1, 0), (0, 1), (0, -1)],    # Rook
-    "Q":  [(1, 0), (-1, 0), (0, 1), (0, -1),
-           (1, 1), (1, -1), (-1, 1), (-1, -1)],  # Queen
-    "K":  [(1, 0), (-1, 0), (0, 1), (0, -1),
-           (1, 1), (1, -1), (-1, 1), (-1, -1)],  # King
-    "P":  [(1, 0)],  # White pawn (moves up the board)
-    "p":  [(-1, 0)], # Black pawn (moves down the board)
-
-    "P_capture":  [(1, 1), (1, -1)],    # White pawn captures diagonally up
-    "p_capture":  [(-1, 1), (-1, -1)],  # Black pawn captures diagonally down
-}
-
-# Sliding pieces
-SLIDING = {"B", "R", "Q"}
-
 # Parse FEN string into board representation and game state
-def parse_fen(fen: str) -> tuple[list[list[str]], tuple[int, int], tuple[int, int], tuple[int, int] | None, str]:
+def parse_fen(fen: str) -> tuple[list[list[str]], tuple[int, int], tuple[int, int], tuple[int, int] | None, int]:
     parts = fen.split()
     if len(parts) < 4:
         raise ValueError("Invalid FEN")
@@ -67,7 +59,7 @@ def parse_fen(fen: str) -> tuple[list[list[str]], tuple[int, int], tuple[int, in
     # Flip so board[0][0] == a1 (white side) (cartesian coordinates)
     board = board[::-1]
     # Side to move: keep as 'w' / 'b'
-    sd = side
+    sd = WHITE if side == 'w' else BLACK
     # Castling rights
     wc = (1 if 'Q' in castling else 0, 1 if 'K' in castling else 0)
     bc = (1 if 'q' in castling else 0, 1 if 'k' in castling else 0)
@@ -79,6 +71,26 @@ def parse_fen(fen: str) -> tuple[list[list[str]], tuple[int, int], tuple[int, in
         rank = int(ep[1]) - 1  # rank 1 → index 0
         ep = (rank, file)
     return board, wc, bc, ep, sd
+
+# Lists of possible moves for each piece type
+DIRECTIONS = {
+    "N":  [(2, 1), (2, -1), (-2, 1), (-2, -1),
+           (1, 2), (1, -2), (-1, 2), (-1, -2)],  # Knight
+    "B":  [(1, 1), (1, -1), (-1, 1), (-1, -1)],  # Bishop
+    "R":  [(1, 0), (-1, 0), (0, 1), (0, -1)],    # Rook
+    "Q":  [(1, 0), (-1, 0), (0, 1), (0, -1),
+           (1, 1), (1, -1), (-1, 1), (-1, -1)],  # Queen
+    "K":  [(1, 0), (-1, 0), (0, 1), (0, -1),
+           (1, 1), (1, -1), (-1, 1), (-1, -1)],  # King
+    "P":  [(1, 0)],  # White pawn (moves up the board)
+    "p":  [(-1, 0)], # Black pawn (moves down the board)
+
+    "P_capture":  [(1, 1), (1, -1)],    # White pawn captures diagonally up
+    "p_capture":  [(-1, 1), (-1, -1)],  # Black pawn captures diagonally down
+}
+
+# Sliding pieces
+SLIDING = {"B", "R", "Q"}
 
 # Precompute attack patterns for knights, kings, pawns rays for sliding pieces
 KNIGHT_ATTACKS = [[] for _ in range(64)]
@@ -160,12 +172,12 @@ for r in range(8):
         ROOK_RAYS[sq] = rays
 
 # Check if square is attacked by opponent's pieces
-def attacked(pos, sq: tuple[int, int], opponent: str) -> bool:
+def attacked(pos, sq: tuple[int, int], opponent: int) -> bool:
     r, c = sq
     board = pos.board
     s = r*8 + c
 
-    if opponent == 'w':
+    if opponent == WHITE:
         pawn, knight, king = 'P', 'N', 'K'
         pawn_table = PAWN_ATTACKS['b']  # reverse lookup
         rook, bishop, queen = 'R', 'B', 'Q'

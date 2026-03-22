@@ -1,7 +1,7 @@
 # Basic chess engine components
 from typing import cast
 from evaluation import evaluate, piece_eval
-from utils import DIRECTIONS, SLIDING, attacked, PIECE_INDEX, PIECE_KEYS, SIDE_KEY, CASTLE_KEYS, EP_KEYS
+from utils import DIRECTIONS, SLIDING, WHITE, BLACK, attacked, PIECE_INDEX, PIECE_KEYS, SIDE_KEY, CASTLE_KEYS, EP_KEYS
 
 # GAME LOGIC
 # Move representation
@@ -46,7 +46,7 @@ class Undo:
     # wk, bk    -- the king squares before the move
     # hash      -- the Zobrist hash of the position before the move
 
-    def __init__(self, move: Move, wc: tuple[int, int], bc: tuple[int, int], ep: tuple[int, int] | None, sd: str, wk: tuple[int, int] | None, bk: tuple[int, int] | None):
+    def __init__(self, move: Move, wc: tuple[int, int], bc: tuple[int, int], ep: tuple[int, int] | None, sd: int, wk: tuple[int, int] | None, bk: tuple[int, int] | None):
         self.move = move
         self.wc = wc
         self.bc = bc
@@ -66,7 +66,7 @@ class Undo:
 class UndoNull:
     __slots__ = ('ep', 'sd', 'hash')
 
-    def __init__(self, ep: tuple[int, int] | None, sd: str, hash: int):
+    def __init__(self, ep: tuple[int, int] | None, sd: int, hash: int):
         self.ep = ep
         self.sd = sd
         self.hash = hash
@@ -80,15 +80,15 @@ class Position:
     # wc      -- white castling rights, [left/queen side, right/king side]
     # bc      -- black castling rights, [left/queen side, right/king side]
     # ep      -- the en passant square
-    # sd      -- the player to move
-    # wk      -- white king square (for quick in_check checks)
-    # bk      -- black king square (for quick in_check checks)
+    # sd      -- the player to move (white: 1, black: -1)
+    # wk      -- white king square
+    # bk      -- black king square
 
     # score   -- the board evaluation (none unless incremental evaluation is enabled)
     # stack -- stack of Undo objects for undoing moves
     # hash    -- zobrist hash of the position
 
-    def __init__(self, board: list[list[str]], wc: tuple[int, int], bc: tuple[int, int], ep: tuple[int, int] | None, sd: str):
+    def __init__(self, board: list[list[str]], wc: tuple[int, int], bc: tuple[int, int], ep: tuple[int, int] | None, sd: int):
         self.board = board
         self.wc = wc
         self.bc = bc
@@ -139,7 +139,7 @@ class Position:
                     h ^= PIECE_KEYS[piece_index][sq]
 
         # side to move
-        if self.sd == "w":
+        if self.sd ==  WHITE:
             h ^= SIDE_KEY
 
         # castling rights
@@ -172,7 +172,7 @@ class Position:
                 if piece == '.':
                     continue
                 # skip opponent pieces
-                if self.sd == 'w':
+                if self.sd == WHITE:
                     if not piece.isupper():
                         continue
                 else:  # player == 'b'
@@ -251,7 +251,7 @@ class Position:
                 if pu == 'K':
                     back_row = 0 if is_white else 7
                     rights = self.wc if is_white else self.bc
-                    opponent = 'b' if is_white else 'w'
+                    opponent = BLACK if is_white else WHITE
 
                     # King-side castling
                     if rights[1]:  # king-side right available
@@ -282,7 +282,7 @@ class Position:
                 if piece == '.':
                     continue
 
-                if self.sd == 'w':
+                if self.sd == WHITE:
                     # Skip opponent pieces
                     if not piece.isupper():
                         continue
@@ -348,7 +348,7 @@ class Position:
         r1, c1 = dst
         piece = self.board[r0][c0]
 
-        is_white = self.sd == 'w'
+        is_white = self.sd == WHITE
 
         # Remove en passant hash if exists
         if self.ep is not None:
@@ -503,7 +503,7 @@ class Position:
 
         # --- Switch side ---
         self.hash ^= SIDE_KEY  # switch side hash
-        self.sd = 'b' if is_white else 'w'
+        self.sd = BLACK if is_white else WHITE
 
         return self
 
@@ -558,7 +558,7 @@ class Position:
             self.ep = None
 
         self.hash ^= SIDE_KEY
-        self.sd = 'b' if self.sd == 'w' else 'w'
+        self.sd = BLACK if self.sd == WHITE else WHITE
 
         return self
 
@@ -570,17 +570,17 @@ class Position:
 
         return self
 
-    def in_check(self, sd: str) -> bool:
+    def in_check(self, sd: int) -> bool:
         """
         Check if the king of side `sd` is attacked by opponent.
         """
         # This must NOT depend on position.sd, because legality checks in search occur AFTER push(), when position.sd has already flipped.
 
-        king = self.wk if sd == 'w' else self.bk
+        king = self.wk if sd == WHITE else self.bk
         if king is None:
             raise ValueError(f"King square for {sd} is not set")
 
-        opponent = 'b' if sd == 'w' else 'w'
+        opponent = BLACK if sd == WHITE else WHITE
         return attacked(self, king, opponent)
 
     def make_uci_move(self, uci_move: str):
@@ -592,7 +592,7 @@ class Position:
         src = (rank_from, file_from)
         dst = (rank_to, file_to)
 
-        promo = (p.upper() if self.sd == 'w' else p) if (p := uci_move[4:5]) else None
+        promo = (p.upper() if self.sd == WHITE else p) if (p := uci_move[4:5]) else None
 
         for m in self.gen_moves():
             if m.src == src and m.dst == dst:

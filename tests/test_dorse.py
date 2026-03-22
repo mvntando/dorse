@@ -29,7 +29,7 @@ def test_initial_position():
     assert pos.wc == (1, 1)
     assert pos.bc == (1, 1)
     assert pos.ep is None
-    assert pos.sd == 'w'
+    assert pos.sd == 1
 
 
 # GEN_MOVE TESTS
@@ -297,7 +297,7 @@ def test_push_white():
     assert pos.wc == (1, 1)
     assert pos.bc == (1, 1)
     assert pos.ep == None
-    assert pos.sd == 'b'
+    assert pos.sd == -1
 
 def test_push_black():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR b KQkq - 0 1")
@@ -312,7 +312,7 @@ def test_push_black():
     assert pos.wc == (1, 1)
     assert pos.bc == (1, 1)
     assert pos.ep == None
-    assert pos.sd == 'w'
+    assert pos.sd == 1
 
 def test_push_capture_white():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/ppp1pppp/8/3p4/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 1")
@@ -347,7 +347,7 @@ def test_push_en_passant_white():
 
     assert pos.board == expected_board
     assert pos.ep == None
-    assert pos.sd == 'b'
+    assert pos.sd == -1
 
 def test_push_en_passant_black():
     board, wc, bc, ep, sd = utils.parse_fen("rnbqkbnr/1pp1pppp/p7/8/3pP3/P4N2/1PPP1PPP/RNBQKB1R b KQkq e3 0 1")
@@ -360,7 +360,7 @@ def test_push_en_passant_black():
 
     assert pos.board == expected_board
     assert pos.ep == None
-    assert pos.sd == 'w'
+    assert pos.sd == 1
 
 def test_push_castling_kingside_white():
     board, wc, bc, ep, sd = utils.parse_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")
@@ -373,7 +373,7 @@ def test_push_castling_kingside_white():
 
     assert pos.board == expected_board
     assert pos.wc == (0, 0)
-    assert pos.sd == 'b'
+    assert pos.sd == -1
 
 def test_push_castling_kingside_black():
     board, wc, bc, ep, sd = utils.parse_fen("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1")
@@ -386,7 +386,7 @@ def test_push_castling_kingside_black():
 
     assert pos.board == expected_board
     assert pos.bc == (0, 0)
-    assert pos.sd == 'w'
+    assert pos.sd == 1
 
 def test_push_castling_queenside_white():
     board, wc, bc, ep, sd = utils.parse_fen("r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1")
@@ -399,7 +399,7 @@ def test_push_castling_queenside_white():
 
     assert pos.board == expected_board
     assert pos.wc == (0, 0)
-    assert pos.sd == 'b'
+    assert pos.sd == -1
 
 def test_push_castling_queenside_black():
     board, wc, bc, ep, sd = utils.parse_fen("r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1")
@@ -412,7 +412,7 @@ def test_push_castling_queenside_black():
 
     assert pos.board == expected_board
     assert pos.bc == (0, 0)
-    assert pos.sd == 'w'
+    assert pos.sd == 1
 
 def test_push_promotion_white():
     board, wc, bc, ep, sd = utils.parse_fen("8/P7/8/8/8/8/7p/8 w - - 0 1")
@@ -424,7 +424,7 @@ def test_push_promotion_white():
     expected_board, *_ = utils.parse_fen("Q7/8/8/8/8/8/7p/8 b - - 0 1")
 
     assert pos.board == expected_board
-    assert pos.sd == 'b'
+    assert pos.sd == -1
 
 def test_push_promotion_black():
     board, wc, bc, ep, sd = utils.parse_fen("8/P7/8/8/8/8/7p/8 b - - 0 1")
@@ -436,7 +436,7 @@ def test_push_promotion_black():
     expected_board, *_ = utils.parse_fen("8/P7/8/8/8/8/8/7r w - - 0 1")
 
     assert pos.board == expected_board
-    assert pos.sd == 'w'
+    assert pos.sd == 1
 
 def test_push_promotion_capture_white():
     board, wc, bc, ep, sd = utils.parse_fen("r7/1P6/8/8/8/8/6p1/7R w - - 0 1")
@@ -687,29 +687,29 @@ def test_in_check_start():
     board, wc, bc, ep, sd = utils.parse_fen(utils.START_POS)
     pos = Position(board, wc, bc, ep, sd)
 
-    assert not pos.in_check('w')
-    assert not pos.in_check('b')
+    assert not pos.in_check(1)
+    assert not pos.in_check(-1)
 
 def test_in_check_white_true():
     board, wc, bc, ep, sd = utils.parse_fen("rnb1k1nr/pppp1ppp/5q2/4p3/4P3/P6N/1PPPQbPP/RNB1KB1R w KQkq - 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
-    assert pos.in_check('w')
-    assert not pos.in_check('b')
+    assert pos.in_check(1)
+    assert not pos.in_check(-1)
 
 def test_in_check_black_true():
     board, wc, bc, ep, sd = utils.parse_fen("r1b1kbnr/ppppqBpp/2n5/4p3/4P3/5Q2/PPPP1PPP/RNB1K1NR b KQkq - 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
-    assert pos.in_check('b')
-    assert not pos.in_check('w')
+    assert pos.in_check(-1)
+    assert not pos.in_check(1)
 
 def test_in_check_both():
     board, wc, bc, ep, sd = utils.parse_fen("4k3/8/5N2/8/8/3n4/8/4K3 w - - 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
-    assert pos.in_check('w')
-    assert pos.in_check('b')
+    assert pos.in_check(1)
+    assert pos.in_check(-1)
 
 
 # UCI_MOVE TESTS

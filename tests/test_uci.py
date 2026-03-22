@@ -92,7 +92,7 @@ def test_parse_position_startpos_single_move():
     assert pos is not None
     assert pos.board[1][4] == '.'  # e2 empty
     assert pos.board[3][4] == 'P'  # e4 pawn
-    assert pos.sd == 'b'
+    assert pos.sd == -1
 
 def test_parse_position_multiple_moves():
     pos = parse_position("position startpos moves e2e4 e7e5 g1f3 b8c6")
@@ -109,7 +109,7 @@ def test_parse_position_multiple_moves():
 
     assert pos.board[7][1] == '.'  # b8
     assert pos.board[5][2] == 'n'  # c6
-    assert pos.sd == 'w'
+    assert pos.sd == 1
 
 def test_illegal_uci_move_raises():
     with pytest.raises(ValueError):
