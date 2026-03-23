@@ -2,13 +2,14 @@
 from typing import cast
 from evaluation import evaluate, piece_eval
 from utils import DIRECTIONS, SLIDING, WHITE, BLACK, attacked, PIECE_INDEX, PIECE_KEYS, SIDE_KEY, CASTLE_KEYS, EP_KEYS
+from utils import EMPTY, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING, PROMO
 
 # GAME LOGIC
 # Move representation
 class Move:
     __slots__ = ('src', 'dst', 'promo', 'piece', 'captured', 'score')
 
-    def __init__(self, src: tuple[int, int], dst: tuple[int, int], promo: str | None, piece: str, captured: str | None = None):
+    def __init__(self, src: tuple[int, int], dst: tuple[int, int], promo: int, piece: int, captured: int = 0):
         self.src = src
         self.dst = dst
         self.promo = promo
@@ -29,7 +30,11 @@ class Move:
     def uci(self):
         src = chr(ord('a') + self.src[1]) + str(self.src[0] + 1)
         dst = chr(ord('a') + self.dst[1]) + str(self.dst[0] + 1)
-        promo = self.promo if self.promo else ''
+
+        promo = ''
+        if self.promo:
+            promo = PROMO[self.promo]
+
         return f"{src}{dst}{promo}"
 
 
@@ -88,7 +93,7 @@ class Position:
     # stack -- stack of Undo objects for undoing moves
     # hash    -- zobrist hash of the position
 
-    def __init__(self, board: list[list[str]], wc: tuple[int, int], bc: tuple[int, int], ep: tuple[int, int] | None, sd: int):
+    def __init__(self, board: list[list[int]], wc: tuple[int, int], bc: tuple[int, int], ep: tuple[int, int] | None, sd: int):
         self.board = board
         self.wc = wc
         self.bc = bc
@@ -105,9 +110,9 @@ class Position:
         # Initialize king squares
         for r in range(8):
             for c in range(8):
-                if board[r][c] == 'K':
+                if board[r][c] == KING:
                     self.wk = (r, c)
-                elif board[r][c] == 'k':
+                elif board[r][c] == -KING:
                     self.bk = (r, c)
 
 
@@ -133,7 +138,7 @@ class Position:
             for col in range(8):
                 piece = self.board[row][col]
 
-                if piece != ".":
+                if piece != 0:
                     piece_index = PIECE_INDEX[piece]
                     sq = row * 8 + col
                     h ^= PIECE_KEYS[piece_index][sq]
@@ -169,66 +174,66 @@ class Position:
             row = self.board[r0] # local row ref
             for c0 in range(8):
                 piece = row[c0]
-                if piece == '.':
+                if piece == EMPTY:
                     continue
                 # skip opponent pieces
                 if self.sd == WHITE:
-                    if not piece.isupper():
+                    if not piece > 0:
                         continue
-                else:  # player == 'b'
-                    if not piece.islower():
+                else:  # player == BLACK
+                    if not piece < 0:
                         continue
 
-                is_white = piece.isupper()
-                pu = piece.upper()
+                is_white = piece > 0
+                pa = abs(piece)
 
                 # --- Pawn logic ---
-                if pu == 'P':
+                if pa == PAWN:
                     if is_white:
-                        fwd_dirs = DIRS["P"]
-                        cap_dirs = DIRS["P_capture"]
+                        fwd_dirs = DIRS[PAWN]
+                        cap_dirs = DIRS["P_cap"]
                         start_row = 1
                         promo_row = 7
                     else:
-                        fwd_dirs = DIRS["p"]
-                        cap_dirs = DIRS["p_capture"]
+                        fwd_dirs = DIRS[-PAWN]
+                        cap_dirs = DIRS["p_cap"]
                         start_row = 6
                         promo_row = 0
                     # forward moves
                     for dr, dc in fwd_dirs:
                         r = r0 + dr; c = c0 + dc
-                        if 0 <= r < 8 and 0 <= c < 8 and self.board[r][c] == '.':  # in bounds and empty
+                        if 0 <= r < 8 and 0 <= c < 8 and self.board[r][c] == EMPTY:  # in bounds and empty
                             if r == promo_row:
-                                for promo in ("q","r","b","n"):
-                                    moves.append(Move((r0, c0), (r, c), promo, piece, None))
+                                for promo in (-QUEEN, -ROOK, -BISHOP, -KNIGHT):  # TODO: change promotion implementation to expect +ve promo
+                                    moves.append(Move((r0, c0), (r, c), promo, piece, 0))
                             else:
-                                moves.append(Move((r0, c0), (r, c), None, piece, None))
+                                moves.append(Move((r0, c0), (r, c), 0, piece, 0))
                             # double step
                             if r0 == start_row:
                                 rr = r + dr; cc = c + dc
-                                if 0 <= rr < 8 and 0 <= cc < 8 and self.board[rr][cc] == '.':
-                                    moves.append(Move((r0, c0), (rr, cc), None, piece, None))
+                                if 0 <= rr < 8 and 0 <= cc < 8 and self.board[rr][cc] == EMPTY:
+                                    moves.append(Move((r0, c0), (rr, cc), 0, piece, 0))
                     # captures
                     for dr, dc in cap_dirs:
                         r = r0 + dr; c = c0 + dc
                         if 0 <= r < 8 and 0 <= c < 8:
                             target = self.board[r][c]
                             # normal capture
-                            if target != '.' and (target.isupper() != is_white):
+                            if target != 0 and ((target > 0) != is_white):
                                 if r == promo_row:
-                                    for promo in ("q","r","b","n"):
+                                    for promo in (-QUEEN, -ROOK, -BISHOP, -KNIGHT):
                                         moves.append(Move((r0, c0), (r, c), promo, piece, target))
                                 else:
-                                    moves.append(Move((r0, c0), (r, c), None, piece, target))
+                                    moves.append(Move((r0, c0), (r, c), 0, piece, target))
                             # en passant capture
                             elif self.ep is not None and (r, c) == self.ep:
-                                moves.append(Move((r0, c0), (r, c), None, piece, self.board[r0][c]))
+                                moves.append(Move((r0, c0), (r, c), 0, piece, self.board[r0][c]))
                     # done with this pawn
                     continue
 
                 # --- Non-pawns ---
-                dirs = DIRS[pu]
-                sliding = pu in SLIDING
+                dirs = DIRS[pa]
+                sliding = pa in SLIDING
 
                 for dr, dc in dirs:
                     r = r0; c = c0
@@ -237,35 +242,35 @@ class Position:
                         if not (0 <= r < 8 and 0 <= c < 8):
                             break
                         target = self.board[r][c]
-                        if target == '.':
-                            moves.append(Move((r0, c0), (r, c), None, piece, None))
+                        if target == EMPTY:
+                            moves.append(Move((r0, c0), (r, c), 0, piece, 0))
                             if not sliding:
                                 break
                         else:
                             # enemy?
-                            if target.isupper() != is_white:
-                                moves.append(Move((r0, c0), (r, c), None, piece, target))
+                            if (target > 0) != is_white:
+                                moves.append(Move((r0, c0), (r, c), 0, piece, target))
                             break
 
                 # --- Castling ---
-                if pu == 'K':
+                if pa == KING:
                     back_row = 0 if is_white else 7
                     rights = self.wc if is_white else self.bc
                     opponent = BLACK if is_white else WHITE
 
                     # King-side castling
                     if rights[1]:  # king-side right available
-                        if self.board[back_row][5] == '.' and self.board[back_row][6] == '.':
+                        if self.board[back_row][5] == EMPTY and self.board[back_row][6] == EMPTY:
                             # King can't pass through check
                             if not attacked(self, (back_row, c0), opponent) and not attacked(self, (back_row, 5), opponent):
-                                moves.append(Move((r0, c0), (back_row, 6), None, piece, None))
+                                moves.append(Move((r0, c0), (back_row, 6), 0, piece, 0))
 
                     # Queen-side castling
                     if rights[0]:  # queen-side right available
-                        if (self.board[back_row][1] == '.' and self.board[back_row][2] == '.' and self.board[back_row][3] == '.'):
+                        if (self.board[back_row][1] == EMPTY and self.board[back_row][2] == EMPTY and self.board[back_row][3] == EMPTY):
                             # King can't pass through check
                             if not attacked(self, (back_row, c0), opponent) and not attacked(self, (back_row, 3), opponent):
-                                moves.append(Move((r0, c0), (back_row, 2), None, piece, None))
+                                moves.append(Move((r0, c0), (back_row, 2), 0, piece, 0))
 
         return moves
 
@@ -279,23 +284,23 @@ class Position:
             row = self.board[r0]
             for c0 in range(8):
                 piece = row[c0]
-                if piece == '.':
+                if piece == EMPTY:
                     continue
 
                 if self.sd == WHITE:
                     # Skip opponent pieces
-                    if not piece.isupper():
+                    if not piece > 0:
                         continue
                 else:
-                    if not piece.islower():
+                    if not piece < 0:
                         continue
 
-                is_white = piece.isupper()
-                pu = piece.upper()
+                is_white = piece > 0
+                pa = abs(piece)
 
                 # --- Pawn logic ---
-                if pu == 'P':
-                    cap_dirs = DIRS["P_capture"] if is_white else DIRS["p_capture"]
+                if pa == PAWN:
+                    cap_dirs = DIRS["P_cap"] if is_white else DIRS["p_cap"]
                     promo_row = 7 if is_white else 0
                     for dr, dc in cap_dirs:
                         r = r0 + dr; c = c0 + dc
@@ -303,20 +308,20 @@ class Position:
                             continue
                         target = self.board[r][c]
                         # normal capture
-                        if target != '.' and target.isupper() != is_white:
+                        if target != 0 and ((target > 0) != is_white):
                             if r == promo_row:
-                                for promo in ("q","r","b","n"):
-                                    moves.append(Move((r0,c0), (r,c), promo, piece, target))
+                                for promo in (-QUEEN, -ROOK, -BISHOP, -KNIGHT):
+                                    moves.append(Move((r0, c0), (r, c), promo, piece, target))
                             else:
-                                moves.append(Move((r0,c0), (r,c), None, piece, target))
+                                moves.append(Move((r0,c0), (r,c), 0, piece, target))
                         # en passant capture
                         elif self.ep is not None and (r, c) == self.ep:
-                            moves.append(Move((r0, c0), (r, c), None, piece, self.board[r0][c]))
+                            moves.append(Move((r0, c0), (r, c), 0, piece, self.board[r0][c]))
                     continue
 
                 # --- Non-pawns ---
-                dirs = DIRS[pu]
-                sliding = pu in SLIDING
+                dirs = DIRS[pa]
+                sliding = pa in SLIDING
 
                 for dr, dc in dirs:
                     r = r0; c = c0
@@ -326,12 +331,12 @@ class Position:
                             break
 
                         target = self.board[r][c]
-                        if target == '.':
+                        if target == EMPTY:
                             if not sliding:
                                 break
                             continue
-                        if target.isupper() != is_white:
-                            moves.append(Move((r0,c0), (r,c), None, piece, target))
+                        if (target > 0) != is_white:
+                            moves.append(Move((r0, c0), (r, c), 0, piece, target))
                         break
 
         return moves
@@ -356,16 +361,16 @@ class Position:
 
         captured = move.captured
         # --- Handle en passant capture ---
-        if piece.upper() == 'P' and self.ep and dst == self.ep:
+        if abs(piece) == PAWN and self.ep and dst == self.ep:
             # --- Add captured piece for en passant undo ---
             undo.ep_sq = (r0, c1)
 
             # Remove captured pawn from board and hash
             sq_ep = r0 * 8 + c1
-            captured_pawn = 'p' if is_white else 'P'
+            captured_pawn = -PAWN if is_white else PAWN
             self.hash ^= PIECE_KEYS[PIECE_INDEX[captured_pawn]][sq_ep]
 
-            self.board[r0][c1] = '.'
+            self.board[r0][c1] = EMPTY
             self.eval -= piece_eval(captured_pawn, r0, c1)  # remove captured pawn from evaluation
 
         # Remove captured piece hash
@@ -375,7 +380,7 @@ class Position:
             self.eval -= piece_eval(captured, r1, c1)  # remove captured piece from evaluation
 
         # --- Update castling rights if rook was captured ---
-        if captured and captured.upper() == 'R':
+        if captured and abs(captured) == ROOK:
             if is_white:  # Captured black rook
                 if dst == (7, 0) and self.bc[0] != 0:  # a8 rook
                     self.hash ^= CASTLE_KEYS[2]  # remove black queenside hash
@@ -399,14 +404,14 @@ class Position:
 
         # --- Move piece ---
         self.board[r1][c1] = piece
-        self.board[r0][c0] = '.'
+        self.board[r0][c0] = EMPTY
         self.eval -= piece_eval(piece, r0, c0)  # Icremental evaluation, piece leaving src, arriving dst
         self.eval += piece_eval(piece, r1, c1)
 
         # --- Handle promotion ---
-        if promo is not None:
+        if promo:
             self.hash ^= PIECE_KEYS[PIECE_INDEX[piece]][sq_to]  # remove pawn hash added before
-            promo = promo.upper() if is_white else promo
+            promo = abs(promo) if is_white else promo
             self.hash ^= PIECE_KEYS[PIECE_INDEX[promo]][sq_to]  # add promoted piece hash
 
             self.board[r1][c1] = promo
@@ -414,8 +419,8 @@ class Position:
             self.eval += piece_eval(promo, r1, c1)
 
         # --- Handle castling (moving rook as well) ---
-        if piece.upper() == 'K' and abs(c1 - c0) == 2:
-            rook = 'R' if is_white else 'r'
+        if abs(piece) == KING and abs(c1 - c0) == 2:
+            rook = ROOK if is_white else -ROOK
 
             if c1 == 2:  # Queenside castling
                 undo.castle = 0  # Update undo castle flag
@@ -428,7 +433,7 @@ class Position:
 
                 # Update board
                 self.board[r1][3] = rook
-                self.board[r1][0] = '.'
+                self.board[r1][0] = EMPTY
                 self.eval -= piece_eval(rook, r1, 0)  # update rook eval
                 self.eval += piece_eval(rook, r1, 3)
 
@@ -443,12 +448,12 @@ class Position:
 
                 # Update board
                 self.board[r1][5] = rook
-                self.board[r1][7] = '.'
+                self.board[r1][7] = EMPTY
                 self.eval -= piece_eval(rook, r1, 7)  # update rook eval
                 self.eval += piece_eval(rook, r1, 5)
 
         # --- Update castling rights and king squares ---
-        if piece.upper() == 'K':  # King moved -> lose both rights
+        if abs(piece) == KING:  # King moved -> lose both rights
             if is_white:
                 if self.wc != (0, 0):
                     if self.wc[0] != 0:
@@ -468,7 +473,7 @@ class Position:
                     self.bc = (0, 0)
                 self.bk = (r1, c1)
 
-        elif piece.upper() == 'R':  # Rook moved
+        elif abs(piece) == ROOK:  # Rook moved
             if is_white:  # White rook moved
                 if src == (0, 0):  # a1 rook
                     if self.wc[0] != 0:
@@ -489,9 +494,9 @@ class Position:
                         self.bc = (self.bc[0], 0)
 
         # --- Update en passant target ---
-        if piece.upper() == 'P' and abs(r1 - r0) == 2:
+        if abs(piece) == 1 and abs(r1 - r0) == 2:
             ep_row = (r0 + r1) // 2
-            enemy = 'p' if is_white else 'P'
+            enemy = -PAWN if is_white else PAWN
             if any(0 <= nc < 8 and self.board[r1][nc] == enemy for nc in (c0 - 1, c0 + 1)):
                 self.ep = (ep_row, c0)
                 self.hash ^= EP_KEYS[c0]  # add new ep hash
@@ -525,18 +530,18 @@ class Position:
         self.hash = undo.hash
 
         # --- Undo move ---
-        self.board[r1][c1] = '.'
+        self.board[r1][c1] = EMPTY
         self.board[r0][c0] = undo.move.piece
 
         # --- Undo castling rook move ---
         if undo.castle is not None:
             if undo.castle == 1:  # kingside
                 rook = self.board[r1][5]
-                self.board[r1][5] = '.'
+                self.board[r1][5] = EMPTY
                 self.board[r1][7] = rook
             else:  # queenside
                 rook = self.board[r1][3]
-                self.board[r1][3] = '.'
+                self.board[r1][3] = EMPTY
                 self.board[r1][0] = rook
 
         # --- Restore captured piece ---
@@ -592,11 +597,14 @@ class Position:
         src = (rank_from, file_from)
         dst = (rank_to, file_to)
 
-        promo = (p.upper() if self.sd == WHITE else p) if (p := uci_move[4:5]) else None
+        promo = None
+        if len(uci_move) > 4:
+            p = uci_move[4].lower()
+            promo = PROMO[p]
 
         for m in self.gen_moves():
             if m.src == src and m.dst == dst:
-                if promo is None or (m.promo and m.promo.upper() == promo.upper()):
+                if not promo or m.promo == promo:
                     self.push(m)
                     return
 
