@@ -1,8 +1,8 @@
 # Basic alpha-beta search with iterative deepening
 import math
 import time
-from dorse import Position, Move
-from evaluation import PIECE_VALUE
+from dorse import Position, Move, WHITE
+from evaluation import PIECE_VALUES
 from utils import PIECE_INDEX
 
 INF = 1_000_000
@@ -244,7 +244,7 @@ class Searcher:
         self.nodes += 1
         self.pv_len[ply] = ply
 
-        score = position.eval if position.sd == 'w' else -position.eval
+        score = position.eval if position.sd == WHITE else -position.eval
         if score >= beta:
             return beta
         if score > alpha:
@@ -294,10 +294,10 @@ class Searcher:
         for move in moves:
             move.score = 0
             # captures: mvv-lva
-            if move.captured is not None:
+            if move.captured:
                 attacker = move.piece
                 victim = move.captured
-                move.score = 100_000 + PIECE_VALUE[victim] * 10 - PIECE_VALUE[attacker]
+                move.score = 100_000 + PIECE_VALUES[abs(victim)] * 10 - PIECE_VALUES[abs(attacker)]
 
             else:  # killer moves
                 if killers[ply][0] is not None and move == killers[ply][0]:

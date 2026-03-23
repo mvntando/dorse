@@ -1,11 +1,9 @@
 # Basic evaluation function, from white's perspective
+from utils import EMPTY, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING
 
 PIECE_VALUES = {
-    'P': 100, 'N': 320, 'B': 330, 'R': 500, 'Q': 900, 'K': 20000,
-    'p': -100, 'n': -320, 'b': -330, 'r': -500, 'q': -900, 'k': -20000
+    PAWN: 100, KNIGHT: 320, BISHOP: 330, ROOK: 500, QUEEN: 900, KING: 20000
 }
-
-PIECE_VALUE = {p: abs(v) for p, v in PIECE_VALUES.items()}  # absolue values for move ordering
 
 # Piece-Square Tables
 PAWN_PST = [
@@ -76,24 +74,24 @@ KING_PST = [
 
 # Flipped once here so PST[piece][r][c] aligns with board where (0,0) = a1
 PST = {
-    'P': PAWN_PST[::-1],
-    'N': KNIGHT_PST[::-1],
-    'B': BISHOP_PST[::-1],
-    'R': ROOK_PST[::-1],
-    'Q': QUEEN_PST[::-1],
-    'K': KING_PST[::-1],
+    PAWN:   PAWN_PST[::-1],
+    KNIGHT: KNIGHT_PST[::-1],
+    BISHOP: BISHOP_PST[::-1],
+    ROOK:   ROOK_PST[::-1],
+    QUEEN:  QUEEN_PST[::-1],
+    KING:   KING_PST[::-1],
 }
 
-def piece_eval(piece, r, c) -> int:
-    if piece.isupper():
+def piece_eval(piece: int, r: int, c: int) -> int:
+    if piece > 0:
         return PIECE_VALUES[piece] + PST[piece][r][c]
     else:
-        return PIECE_VALUES[piece] - PST[piece.upper()][7 - r][c]
+        return -(PIECE_VALUES[abs(piece)] + PST[abs(piece)][7 - r][c])
 
 def evaluate(position) -> int:
     score = 0
     for r, row in enumerate(position.board):
         for c, piece in enumerate(row):
-            if piece != '.':
+            if piece != EMPTY:
                 score += piece_eval(piece, r, c)
     return score
