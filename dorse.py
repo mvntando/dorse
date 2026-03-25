@@ -566,13 +566,11 @@ class Position:
         Check if the king of side `sd` is attacked by opponent.
         """
         # This must NOT depend on position.sd, because legality checks in search occur AFTER push(), when position.sd has already flipped.
-
         king = self.wk if sd == WHITE else self.bk
         if king is None:
             raise ValueError(f"King square for {sd} is not set")
 
-        opponent = -sd
-        return attacked(self, king, opponent)
+        return attacked(self, king, -sd)
 
     def make_uci_move(self, uci_move: str):
         file_from = ord(uci_move[0]) - ord('a')
@@ -582,7 +580,7 @@ class Position:
 
         src = (rank_from, file_from)
         dst = (rank_to, file_to)
-        
+
         promo = PROMO[uci_move[4].lower()] if len(uci_move) == 5 else 0  # parse promo piece
         for m in self.gen_moves():
             if m.src == src and m.dst == dst and m.promo == promo:
