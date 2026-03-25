@@ -28,7 +28,7 @@ ROOK   = 4
 QUEEN  = 5
 KING   = 6
 
-PROMO_PIECES = {'q': -5, 'r': -4, 'b': -3, 'n': -2}
+PROMO_PIECES = {'q': 5, 'r': 4, 'b': 3, 'n': 2}
 PROMO = {**PROMO_PIECES, **{v: k for k, v in PROMO_PIECES.items()}}
 
 PIECE_INDEX = {

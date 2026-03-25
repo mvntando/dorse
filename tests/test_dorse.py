@@ -421,7 +421,7 @@ def test_push_promotion_white():
     board, wc, bc, ep, sd = parse_fen("8/P7/8/8/8/8/7p/8 w - - 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
-    move = Move(coord('a7'), coord('a8'), -QUEEN, PAWN)
+    move = Move(coord('a7'), coord('a8'), QUEEN, PAWN)
     pos = pos.push(move)
 
     expected_board, *_ = parse_fen("Q7/8/8/8/8/8/7p/8 b - - 0 1")
@@ -433,7 +433,7 @@ def test_push_promotion_black():
     board, wc, bc, ep, sd = parse_fen("8/P7/8/8/8/8/7p/8 b - - 0 1")
     pos = Position(board, wc, bc, ep, sd)
 
-    move = Move(coord('h2'), coord('h1'), -ROOK, -PAWN)
+    move = Move(coord('h2'), coord('h1'), ROOK, -PAWN)
     pos = pos.push(move)
 
     expected_board, *_ = parse_fen("8/P7/8/8/8/8/8/7r w - - 0 1")
@@ -444,7 +444,7 @@ def test_push_promotion_black():
 def test_push_promotion_capture_white():
     board, wc, bc, ep, sd = parse_fen("r7/1P6/8/8/8/8/6p1/7R w - - 0 1")
     pos = Position(board, wc, bc, ep, sd)
-    move = Move(coord('b7'), coord('a8'), -QUEEN, PAWN, -ROOK)
+    move = Move(coord('b7'), coord('a8'), QUEEN, PAWN, -ROOK)
 
     pos = pos.push(move)
 
@@ -454,7 +454,7 @@ def test_push_promotion_capture_white():
 def test_push_promotion_capture_black():
     board, wc, bc, ep, sd = parse_fen("r7/1P6/8/8/8/8/6p1/7R b - - 0 1")
     pos = Position(board, wc, bc, ep, sd)
-    move = Move(coord('g2'), coord('h1'), -QUEEN, -PAWN, ROOK)
+    move = Move(coord('g2'), coord('h1'), QUEEN, -PAWN, ROOK)
 
     pos = pos.push(move)
 

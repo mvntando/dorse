@@ -32,7 +32,7 @@ class Move:
         dst = chr(ord('a') + self.dst[1]) + str(self.dst[0] + 1)
 
         promo = ''
-        if self.promo:
+        if self.promo != 0:
             promo = PROMO[self.promo]
 
         return f"{src}{dst}{promo}"
@@ -198,7 +198,7 @@ class Position:
                         r = r0 + dr; c = c0 + dc
                         if 0 <= r < 8 and 0 <= c < 8 and board[r][c] == EMPTY:
                             if r == promo_row:
-                                for promo in (-QUEEN, -ROOK, -BISHOP, -KNIGHT):
+                                for promo in (QUEEN, ROOK, BISHOP, KNIGHT):
                                     moves.append(Move((r0, c0), (r, c), promo, piece, 0))
                             else:
                                 moves.append(Move((r0, c0), (r, c), 0, piece, 0))
@@ -216,7 +216,7 @@ class Position:
                             if target != 0:
                                 if target * self.sd < 0:
                                     if r == promo_row:
-                                        for promo in (-QUEEN, -ROOK, -BISHOP, -KNIGHT):
+                                        for promo in (QUEEN, ROOK, BISHOP, KNIGHT):
                                             moves.append(Move((r0, c0), (r, c), promo, piece, target))
                                     else:
                                         moves.append(Move((r0, c0), (r, c), 0, piece, target))
@@ -297,7 +297,7 @@ class Position:
                         if target != 0:
                             if target * self.sd < 0:
                                 if r == promo_row:
-                                    for promo in (-QUEEN, -ROOK, -BISHOP, -KNIGHT):
+                                    for promo in (QUEEN, ROOK, BISHOP, KNIGHT):
                                         moves.append(Move((r0, c0), (r, c), promo, piece, target))
                                 else:
                                     moves.append(Move((r0,c0), (r,c), 0, piece, target))
@@ -397,7 +397,7 @@ class Position:
         # --- Handle promotion ---
         if promo:
             self.hash ^= PIECE_KEYS[PIECE_INDEX[piece]][sq_to]  # remove pawn hash added before
-            promo = -promo * self.sd
+            promo = promo * self.sd
             self.hash ^= PIECE_KEYS[PIECE_INDEX[promo]][sq_to]  # add promoted piece hash
 
             self.board[r1][c1] = promo
@@ -582,16 +582,10 @@ class Position:
 
         src = (rank_from, file_from)
         dst = (rank_to, file_to)
-
-        promo = None
-        if len(uci_move) > 4:
-            p = uci_move[4].lower()
-            promo = PROMO[p]
-
+        
+        promo = PROMO[uci_move[4].lower()] if len(uci_move) == 5 else 0  # parse promo piece
         for m in self.gen_moves():
-            if m.src == src and m.dst == dst:
-                if not promo or m.promo == promo:
-                    self.push(m)
-                    return
-
+            if m.src == src and m.dst == dst and m.promo == promo:
+                self.push(m)
+                return
         raise ValueError(f"Illegal UCI move: {uci_move}")
