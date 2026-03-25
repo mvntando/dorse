@@ -167,29 +167,23 @@ class Position:
     # Return legal moves a given position.
     def gen_moves(self) -> list[Move]:
         DIRS = DIRECTIONS # local alias
+        board = self.board
 
         moves: list[Move] = []
 
         for r0 in range(8):
-            row = self.board[r0] # local row ref
+            row = board[r0] # local row ref
             for c0 in range(8):
                 piece = row[c0]
-                if piece == EMPTY:
+                # Skip opponent pieces
+                if piece * self.sd <= 0:
                     continue
-                # skip opponent pieces
-                if self.sd == WHITE:
-                    if not piece > 0:
-                        continue
-                else:  # player == BLACK
-                    if not piece < 0:
-                        continue
 
-                is_white = piece > 0
                 pa = abs(piece)
 
                 # --- Pawn logic ---
                 if pa == PAWN:
-                    if is_white:
+                    if self.sd == WHITE:
                         fwd_dirs = DIRS[PAWN]
                         cap_dirs = DIRS["P_cap"]
                         start_row = 1
@@ -202,73 +196,73 @@ class Position:
                     # forward moves
                     for dr, dc in fwd_dirs:
                         r = r0 + dr; c = c0 + dc
-                        if 0 <= r < 8 and 0 <= c < 8 and self.board[r][c] == EMPTY:  # in bounds and empty
+                        if 0 <= r < 8 and 0 <= c < 8 and board[r][c] == EMPTY:
                             if r == promo_row:
-                                for promo in (-QUEEN, -ROOK, -BISHOP, -KNIGHT):  # TODO: change promotion implementation to expect +ve promo
+                                for promo in (-QUEEN, -ROOK, -BISHOP, -KNIGHT):
                                     moves.append(Move((r0, c0), (r, c), promo, piece, 0))
                             else:
                                 moves.append(Move((r0, c0), (r, c), 0, piece, 0))
                             # double step
                             if r0 == start_row:
                                 rr = r + dr; cc = c + dc
-                                if 0 <= rr < 8 and 0 <= cc < 8 and self.board[rr][cc] == EMPTY:
+                                if self.board[rr][cc] == EMPTY:
                                     moves.append(Move((r0, c0), (rr, cc), 0, piece, 0))
                     # captures
                     for dr, dc in cap_dirs:
                         r = r0 + dr; c = c0 + dc
                         if 0 <= r < 8 and 0 <= c < 8:
-                            target = self.board[r][c]
                             # normal capture
-                            if target != 0 and ((target > 0) != is_white):
-                                if r == promo_row:
-                                    for promo in (-QUEEN, -ROOK, -BISHOP, -KNIGHT):
-                                        moves.append(Move((r0, c0), (r, c), promo, piece, target))
-                                else:
-                                    moves.append(Move((r0, c0), (r, c), 0, piece, target))
+                            target = board[r][c]
+                            if target != 0:
+                                if target * self.sd < 0:
+                                    if r == promo_row:
+                                        for promo in (-QUEEN, -ROOK, -BISHOP, -KNIGHT):
+                                            moves.append(Move((r0, c0), (r, c), promo, piece, target))
+                                    else:
+                                        moves.append(Move((r0, c0), (r, c), 0, piece, target))
                             # en passant capture
                             elif self.ep is not None and (r, c) == self.ep:
-                                moves.append(Move((r0, c0), (r, c), 0, piece, self.board[r0][c]))
+                                captured = board[r0][c]
+                                moves.append(Move((r0, c0), (r, c), 0, piece, captured))
                     # done with this pawn
                     continue
 
                 # --- Non-pawns ---
                 dirs = DIRS[pa]
                 sliding = pa in SLIDING
-
                 for dr, dc in dirs:
                     r = r0; c = c0
                     while True:
                         r += dr; c += dc
                         if not (0 <= r < 8 and 0 <= c < 8):
                             break
-                        target = self.board[r][c]
+                        target = board[r][c]
                         if target == EMPTY:
                             moves.append(Move((r0, c0), (r, c), 0, piece, 0))
                             if not sliding:
                                 break
-                        else:
-                            # enemy?
-                            if (target > 0) != is_white:
+                        else:  # enemy
+                            if target * self.sd < 0:
                                 moves.append(Move((r0, c0), (r, c), 0, piece, target))
                             break
 
                 # --- Castling ---
                 if pa == KING:
-                    back_row = 0 if is_white else 7
-                    rights = self.wc if is_white else self.bc
-                    opponent = BLACK if is_white else WHITE
+                    back_row = 0 if self.sd == WHITE else 7
+                    rights = self.wc if self.sd == WHITE else self.bc
+                    opponent = -self.sd
 
                     # King-side castling
-                    if rights[1]:  # king-side right available
-                        if self.board[back_row][5] == EMPTY and self.board[back_row][6] == EMPTY:
-                            # King can't pass through check
+                    if rights[1]:
+                        if board[back_row][5] == EMPTY and board[back_row][6] == EMPTY:
+                            # king cannot be in check or pass through attacked squares
                             if not attacked(self, (back_row, c0), opponent) and not attacked(self, (back_row, 5), opponent):
                                 moves.append(Move((r0, c0), (back_row, 6), 0, piece, 0))
 
                     # Queen-side castling
-                    if rights[0]:  # queen-side right available
-                        if (self.board[back_row][1] == EMPTY and self.board[back_row][2] == EMPTY and self.board[back_row][3] == EMPTY):
-                            # King can't pass through check
+                    if rights[0]:
+                        if (board[back_row][1] == EMPTY and board[back_row][2] == EMPTY and board[back_row][3] == EMPTY):
+                            # king cannot be in check or pass through attacked squares
                             if not attacked(self, (back_row, c0), opponent) and not attacked(self, (back_row, 3), opponent):
                                 moves.append(Move((r0, c0), (back_row, 2), 0, piece, 0))
 
@@ -277,46 +271,40 @@ class Position:
     # Return pseudo-legal capture moves at a given position.
     def gen_captures(self) -> list[Move]:
         DIRS = DIRECTIONS
+        board = self.board
 
         moves: list[Move] = []
 
         for r0 in range(8):
-            row = self.board[r0]
+            row = board[r0]
             for c0 in range(8):
                 piece = row[c0]
-                if piece == EMPTY:
+                if piece * self.sd <= 0:
                     continue
 
-                if self.sd == WHITE:
-                    # Skip opponent pieces
-                    if not piece > 0:
-                        continue
-                else:
-                    if not piece < 0:
-                        continue
-
-                is_white = piece > 0
                 pa = abs(piece)
 
                 # --- Pawn logic ---
                 if pa == PAWN:
-                    cap_dirs = DIRS["P_cap"] if is_white else DIRS["p_cap"]
-                    promo_row = 7 if is_white else 0
+                    cap_dirs = DIRS["P_cap"] if self.sd == WHITE else DIRS["p_cap"]
+                    promo_row = 7 if self.sd == WHITE else 0
                     for dr, dc in cap_dirs:
                         r = r0 + dr; c = c0 + dc
-                        if not (0 <= r < 8 and 0 <= c < 8):  # not in bounds
+                        if not (0 <= r < 8 and 0 <= c < 8):
                             continue
-                        target = self.board[r][c]
+                        target = board[r][c]
                         # normal capture
-                        if target != 0 and ((target > 0) != is_white):
-                            if r == promo_row:
-                                for promo in (-QUEEN, -ROOK, -BISHOP, -KNIGHT):
-                                    moves.append(Move((r0, c0), (r, c), promo, piece, target))
-                            else:
-                                moves.append(Move((r0,c0), (r,c), 0, piece, target))
-                        # en passant capture
-                        elif self.ep is not None and (r, c) == self.ep:
-                            moves.append(Move((r0, c0), (r, c), 0, piece, self.board[r0][c]))
+                        if target != 0:
+                            if target * self.sd < 0:
+                                if r == promo_row:
+                                    for promo in (-QUEEN, -ROOK, -BISHOP, -KNIGHT):
+                                        moves.append(Move((r0, c0), (r, c), promo, piece, target))
+                                else:
+                                    moves.append(Move((r0,c0), (r,c), 0, piece, target))
+                            # en passant capture
+                            elif self.ep is not None and (r, c) == self.ep:
+                                captured = board[r0][c]
+                                moves.append(Move((r0, c0), (r, c), 0, piece, captured))
                     continue
 
                 # --- Non-pawns ---
@@ -330,12 +318,12 @@ class Position:
                         if not (0 <= r < 8 and 0 <= c < 8):
                             break
 
-                        target = self.board[r][c]
+                        target = board[r][c]
                         if target == EMPTY:
                             if not sliding:
                                 break
                             continue
-                        if (target > 0) != is_white:
+                        if target * self.sd < 0:
                             moves.append(Move((r0, c0), (r, c), 0, piece, target))
                         break
 
@@ -353,8 +341,6 @@ class Position:
         r1, c1 = dst
         piece = self.board[r0][c0]
 
-        is_white = self.sd == WHITE
-
         # Remove en passant hash if exists
         if self.ep is not None:
             self.hash ^= EP_KEYS[self.ep[1]]
@@ -367,7 +353,7 @@ class Position:
 
             # Remove captured pawn from board and hash
             sq_ep = r0 * 8 + c1
-            captured_pawn = -PAWN if is_white else PAWN
+            captured_pawn = PAWN * self.sd
             self.hash ^= PIECE_KEYS[PIECE_INDEX[captured_pawn]][sq_ep]
 
             self.board[r0][c1] = EMPTY
@@ -381,7 +367,7 @@ class Position:
 
         # --- Update castling rights if rook was captured ---
         if captured and abs(captured) == ROOK:
-            if is_white:  # Captured black rook
+            if self.sd == WHITE:  # Captured black rook
                 if dst == (7, 0) and self.bc[0] != 0:  # a8 rook
                     self.hash ^= CASTLE_KEYS[2]  # remove black queenside hash
                     self.bc = (0, self.bc[1])
@@ -411,7 +397,7 @@ class Position:
         # --- Handle promotion ---
         if promo:
             self.hash ^= PIECE_KEYS[PIECE_INDEX[piece]][sq_to]  # remove pawn hash added before
-            promo = abs(promo) if is_white else promo
+            promo = -promo * self.sd
             self.hash ^= PIECE_KEYS[PIECE_INDEX[promo]][sq_to]  # add promoted piece hash
 
             self.board[r1][c1] = promo
@@ -420,7 +406,7 @@ class Position:
 
         # --- Handle castling (moving rook as well) ---
         if abs(piece) == KING and abs(c1 - c0) == 2:
-            rook = ROOK if is_white else -ROOK
+            rook = ROOK * self.sd
 
             if c1 == 2:  # Queenside castling
                 undo.castle = 0  # Update undo castle flag
@@ -454,7 +440,7 @@ class Position:
 
         # --- Update castling rights and king squares ---
         if abs(piece) == KING:  # King moved -> lose both rights
-            if is_white:
+            if self.sd == WHITE:
                 if self.wc != (0, 0):
                     if self.wc[0] != 0:
                         self.hash ^= CASTLE_KEYS[0]  # remove white queenside hash
@@ -474,7 +460,7 @@ class Position:
                 self.bk = (r1, c1)
 
         elif abs(piece) == ROOK:  # Rook moved
-            if is_white:  # White rook moved
+            if self.sd == WHITE:  # White rook moved
                 if src == (0, 0):  # a1 rook
                     if self.wc[0] != 0:
                         self.hash ^= CASTLE_KEYS[0]  # remove white queenside hash
@@ -496,7 +482,7 @@ class Position:
         # --- Update en passant target ---
         if abs(piece) == 1 and abs(r1 - r0) == 2:
             ep_row = (r0 + r1) // 2
-            enemy = -PAWN if is_white else PAWN
+            enemy = -PAWN * self.sd
             if any(0 <= nc < 8 and self.board[r1][nc] == enemy for nc in (c0 - 1, c0 + 1)):
                 self.ep = (ep_row, c0)
                 self.hash ^= EP_KEYS[c0]  # add new ep hash
@@ -508,7 +494,7 @@ class Position:
 
         # --- Switch side ---
         self.hash ^= SIDE_KEY  # switch side hash
-        self.sd = BLACK if is_white else WHITE
+        self.sd = -self.sd
 
         return self
 
@@ -585,7 +571,7 @@ class Position:
         if king is None:
             raise ValueError(f"King square for {sd} is not set")
 
-        opponent = BLACK if sd == WHITE else WHITE
+        opponent = -sd
         return attacked(self, king, opponent)
 
     def make_uci_move(self, uci_move: str):
