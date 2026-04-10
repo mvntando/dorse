@@ -32,7 +32,7 @@ PROMO_PIECES = {'q': 5, 'r': 4, 'b': 3, 'n': 2}
 PROMO = {**PROMO_PIECES, **{v: k for k, v in PROMO_PIECES.items()}}
 
 PIECE_INDEX = {
-    PAWN: 0, KNIGHT: 1, BISHOP: 2, ROOK: 3, QUEEN: 4, KING: 5,
+    PAWN: 0,  KNIGHT: 1,  BISHOP: 2,  ROOK: 3,  QUEEN: 4,   KING: 5,
     -PAWN: 6, -KNIGHT: 7, -BISHOP: 8, -ROOK: 9, -QUEEN: 10, -KING: 11
 }
 
@@ -48,8 +48,8 @@ def parse_fen(fen: str) -> tuple[list[list[int]], tuple[int, int], tuple[int, in
     board: list[list[int]] = []
 
     fen_map = {
-        'P': PAWN,   'N': KNIGHT, 'B': BISHOP, 'R': ROOK,   'Q': QUEEN,  'K': KING,
-        'p': -PAWN,  'n': -KNIGHT,'b': -BISHOP, 'r': -ROOK,  'q': -QUEEN, 'k': -KING,
+        'P': PAWN,  'N': KNIGHT,  'B': BISHOP,  'R': ROOK,  'Q': QUEEN,  'K': KING,
+        'p': -PAWN, 'n': -KNIGHT, 'b': -BISHOP, 'r': -ROOK, 'q': -QUEEN, 'k': -KING,
     }
 
     # FEN ranks: 8 to 1
@@ -77,22 +77,22 @@ def parse_fen(fen: str) -> tuple[list[list[int]], tuple[int, int], tuple[int, in
         ep = None
     else:
         file = ord(ep[0]) - ord('a')
-        rank = int(ep[1]) - 1  # rank 1 → index 0
+        rank = int(ep[1]) - 1  # rank 1 -> index 0
         ep = (rank, file)
     return board, wc, bc, ep, sd
 
 # Lists of possible moves for each piece type
 DIRECTIONS = {
     KNIGHT: [(2, 1), (2, -1), (-2, 1), (-2, -1),
-           (1, 2), (1, -2), (-1, 2), (-1, -2)],  # Knight
+           (1, 2), (1, -2), (-1, 2), (-1, -2)],    # Knight
     BISHOP: [(1, 1), (1, -1), (-1, 1), (-1, -1)],  # Bishop
     ROOK:   [(1, 0), (-1, 0), (0, 1), (0, -1)],    # Rook
     QUEEN:  [(1, 0), (-1, 0), (0, 1), (0, -1),
              (1, 1), (1, -1), (-1, 1), (-1, -1)],  # Queen
     KING:   [(1, 0), (-1, 0), (0, 1), (0, -1),
-           (1, 1), (1, -1), (-1, 1), (-1, -1)],  # King
-    PAWN:   [(1, 0)],  # White pawn (moves up the board)
-    -PAWN:  [(-1, 0)], # Black pawn (moves down the board)
+           (1, 1), (1, -1), (-1, 1), (-1, -1)],    # King
+    PAWN:   [(1, 0)],   # White pawn (moves up the board)
+    -PAWN:  [(-1, 0)],  # Black pawn (moves down the board)
 
     "P_cap":  [(1, 1), (1, -1)],    # White pawn captures diagonally up
     "p_cap":  [(-1, 1), (-1, -1)],  # Black pawn captures diagonally down

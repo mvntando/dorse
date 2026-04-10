@@ -1,5 +1,3 @@
-from dorse import Position, Move
-
 # Convert a position to algebraic notation
 def square(sq: tuple[int, int]) -> str:
     y, x = sq

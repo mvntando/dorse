@@ -1,8 +1,7 @@
 # Basic chess engine components
 from typing import cast
 from evaluation import evaluate, piece_eval
-from utils import DIRECTIONS, SLIDING, WHITE, BLACK, attacked, PIECE_INDEX, PIECE_KEYS, SIDE_KEY, CASTLE_KEYS, EP_KEYS
-from utils import EMPTY, PAWN, BISHOP, KNIGHT, ROOK, QUEEN, KING, PROMO
+from utils import *
 
 # GAME LOGIC
 # Move representation
@@ -166,13 +165,13 @@ class Position:
 
     # Return legal moves a given position.
     def gen_moves(self) -> list[Move]:
-        DIRS = DIRECTIONS # local alias
+        DIRS = DIRECTIONS  # local alias
         board = self.board
 
         moves: list[Move] = []
 
         for r0 in range(8):
-            row = board[r0] # local row ref
+            row = board[r0]  # local row ref
             for c0 in range(8):
                 piece = row[c0]
                 # Skip opponent pieces
@@ -336,10 +335,11 @@ class Position:
         undo.hash = self.hash
         self.stack.append(undo)
 
+        board = self.board
         src, dst, promo = move.src, move.dst, move.promo
         r0, c0 = src
         r1, c1 = dst
-        piece = self.board[r0][c0]
+        piece = board[r0][c0]
 
         # Remove en passant hash if exists
         if self.ep is not None:
@@ -356,7 +356,7 @@ class Position:
             captured_pawn = PAWN * self.sd
             self.hash ^= PIECE_KEYS[PIECE_INDEX[captured_pawn]][sq_ep]
 
-            self.board[r0][c1] = EMPTY
+            board[r0][c1] = EMPTY
             self.eval -= piece_eval(captured_pawn, r0, c1)  # remove captured pawn from evaluation
 
         # Remove captured piece hash
@@ -389,8 +389,8 @@ class Position:
         self.hash ^= PIECE_KEYS[PIECE_INDEX[piece]][sq_to]
 
         # --- Move piece ---
-        self.board[r1][c1] = piece
-        self.board[r0][c0] = EMPTY
+        board[r1][c1] = piece
+        board[r0][c0] = EMPTY
         self.eval -= piece_eval(piece, r0, c0)  # Icremental evaluation, piece leaving src, arriving dst
         self.eval += piece_eval(piece, r1, c1)
 
@@ -400,7 +400,7 @@ class Position:
             promo = promo * self.sd
             self.hash ^= PIECE_KEYS[PIECE_INDEX[promo]][sq_to]  # add promoted piece hash
 
-            self.board[r1][c1] = promo
+            board[r1][c1] = promo
             self.eval -= piece_eval(piece, r1, c1)  # remove pawn value at dst and add promo value
             self.eval += piece_eval(promo, r1, c1)
 
@@ -418,8 +418,8 @@ class Position:
                 self.hash ^= PIECE_KEYS[PIECE_INDEX[rook]][rook_to]
 
                 # Update board
-                self.board[r1][3] = rook
-                self.board[r1][0] = EMPTY
+                board[r1][3] = rook
+                board[r1][0] = EMPTY
                 self.eval -= piece_eval(rook, r1, 0)  # update rook eval
                 self.eval += piece_eval(rook, r1, 3)
 
@@ -433,8 +433,8 @@ class Position:
                 self.hash ^= PIECE_KEYS[PIECE_INDEX[rook]][rook_to]
 
                 # Update board
-                self.board[r1][5] = rook
-                self.board[r1][7] = EMPTY
+                board[r1][5] = rook
+                board[r1][7] = EMPTY
                 self.eval -= piece_eval(rook, r1, 7)  # update rook eval
                 self.eval += piece_eval(rook, r1, 5)
 
@@ -483,7 +483,7 @@ class Position:
         if abs(piece) == 1 and abs(r1 - r0) == 2:
             ep_row = (r0 + r1) // 2
             enemy = -PAWN * self.sd
-            if any(0 <= nc < 8 and self.board[r1][nc] == enemy for nc in (c0 - 1, c0 + 1)):
+            if any(0 <= nc < 8 and board[r1][nc] == enemy for nc in (c0 - 1, c0 + 1)):
                 self.ep = (ep_row, c0)
                 self.hash ^= EP_KEYS[c0]  # add new ep hash
             else:
@@ -515,28 +515,30 @@ class Position:
         self.eval = undo.eval
         self.hash = undo.hash
 
+        board = self.board
+
         # --- Undo move ---
-        self.board[r1][c1] = EMPTY
-        self.board[r0][c0] = undo.move.piece
+        board[r1][c1] = EMPTY
+        board[r0][c0] = undo.move.piece
 
         # --- Undo castling rook move ---
         if undo.castle is not None:
             if undo.castle == 1:  # kingside
-                rook = self.board[r1][5]
-                self.board[r1][5] = EMPTY
-                self.board[r1][7] = rook
+                rook = board[r1][5]
+                board[r1][5] = EMPTY
+                board[r1][7] = rook
             else:  # queenside
-                rook = self.board[r1][3]
-                self.board[r1][3] = EMPTY
-                self.board[r1][0] = rook
+                rook = board[r1][3]
+                board[r1][3] = EMPTY
+                board[r1][0] = rook
 
         # --- Restore captured piece ---
         if undo.move.captured:
             if undo.ep_sq:
                 er, ec = undo.ep_sq
-                self.board[er][ec] = undo.move.captured
+                board[er][ec] = undo.move.captured
             else:
-                self.board[r1][c1] = undo.move.captured
+                board[r1][c1] = undo.move.captured
 
         return self
 
