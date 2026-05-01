@@ -1,5 +1,4 @@
 import io
-import numpy as np
 import pytest
 from utils import parse_fen, START_POS, WHITE, BLACK, EMPTY, PAWN, KNIGHT
 from uci import parse_position, uci_loop

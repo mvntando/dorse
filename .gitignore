@@ -45,3 +45,9 @@ htmlcov/
 *.swp
 *.swo
 *~
+
+# Dev files
+pyrightconfig.json
+
+# User files
+notes.txt
