@@ -532,7 +532,7 @@ def test_push_pop_hash():
 
     assert pos.hash == original_hash
 
-from evaluation import evaluate
+from evaluate import evaluator
 
 # Test incremental evaluation consistency
 def test_push_eval():
@@ -541,7 +541,7 @@ def test_push_eval():
 
     for move in pos.gen_moves():
         pos.push(move)
-        full = evaluate(pos)
+        full = evaluator(pos)
         assert pos.eval == full, f"move={move.uci()} incremental={pos.eval} full={full}"
         pos.pop()
 
@@ -553,7 +553,7 @@ def test_push_eval_deeper():
         pos.push(move)
         for move2 in pos.gen_moves():
             pos.push(move2)
-            full = evaluate(pos)
+            full = evaluator(pos)
             assert pos.eval == full, f"move={move.uci()} move2={move2.uci()} incremental={pos.eval} full={full}"
             pos.pop()
         pos.pop()

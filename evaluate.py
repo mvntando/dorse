@@ -72,7 +72,7 @@ KING_PST = [
     [ 17,  30,  -3, -14,   6,  -1,  40,  18],
 ]
 
-# Flipped once here so PST[piece][r][c] aligns with board where (0,0) = a1
+# PST flipped once here so PST[piece][r][c] aligns with board where (0, 0) = a1
 PST = {
     PAWN:   PAWN_PST[::-1],
     KNIGHT: KNIGHT_PST[::-1],
@@ -88,7 +88,7 @@ def piece_eval(piece: int, r: int, c: int) -> int:
     else:
         return -(PIECE_VALUES[abs(piece)] + PST[abs(piece)][7 - r][c])
 
-def evaluate(position) -> int:
+def evaluator(position) -> int:
     score = 0
     for r, row in enumerate(position.board):
         for c, piece in enumerate(row):

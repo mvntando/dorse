@@ -15,6 +15,7 @@ def print_options():
     # Engine options
     pass
 
+# Main UCI communication loop
 def uci_loop():
     searcher = Searcher()
     position = None
@@ -77,6 +78,7 @@ def uci_loop():
             print("")
             break
 
+# Parse UCI "position" command
 def parse_position(line: str) -> Position | None:
     tokens = line.split()
 

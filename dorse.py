@@ -1,6 +1,6 @@
 # Basic chess engine components
 from typing import cast
-from evaluation import evaluate, piece_eval
+from evaluate import evaluator, piece_eval
 from utils import *
 
 # GAME LOGIC
@@ -102,7 +102,7 @@ class Position:
         self.wk: tuple[int, int] | None = None
         self.bk: tuple[int, int] | None = None
 
-        self.eval: int = evaluate(self)
+        self.eval: int = evaluator(self)
         self.stack: list[Undo | UndoNull] = []
         self.hash = self.gen_hash()  # Zobrist hash
 
@@ -163,7 +163,7 @@ class Position:
 
         return h
 
-    # Return legal moves a given position.
+    # Return legal moves at a given position.
     def gen_moves(self) -> list[Move]:
         DIRS = DIRECTIONS  # local alias
         board = self.board
@@ -328,6 +328,7 @@ class Position:
 
         return moves
 
+    # Make a move
     def push(self, move: Move):
         # --- Push undo ---
         undo = Undo(move, self.wc, self.bc, self.ep, self.sd, self.wk, self.bk,)
@@ -498,6 +499,7 @@ class Position:
 
         return self
 
+    # Undo a move
     def pop(self):
         undo = cast(Undo, self.stack.pop())
 

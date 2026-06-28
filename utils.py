@@ -84,13 +84,13 @@ def parse_fen(fen: str) -> tuple[list[list[int]], tuple[int, int], tuple[int, in
 # Lists of possible moves for each piece type
 DIRECTIONS = {
     KNIGHT: [(2, 1), (2, -1), (-2, 1), (-2, -1),
-           (1, 2), (1, -2), (-1, 2), (-1, -2)],    # Knight
-    BISHOP: [(1, 1), (1, -1), (-1, 1), (-1, -1)],  # Bishop
-    ROOK:   [(1, 0), (-1, 0), (0, 1), (0, -1)],    # Rook
+           (1, 2), (1, -2), (-1, 2), (-1, -2)],
+    BISHOP: [(1, 1), (1, -1), (-1, 1), (-1, -1)],
+    ROOK:   [(1, 0), (-1, 0), (0, 1), (0, -1)],
     QUEEN:  [(1, 0), (-1, 0), (0, 1), (0, -1),
-             (1, 1), (1, -1), (-1, 1), (-1, -1)],  # Queen
+             (1, 1), (1, -1), (-1, 1), (-1, -1)],
     KING:   [(1, 0), (-1, 0), (0, 1), (0, -1),
-           (1, 1), (1, -1), (-1, 1), (-1, -1)],    # King
+           (1, 1), (1, -1), (-1, 1), (-1, -1)],
     PAWN:   [(1, 0)],   # White pawn (moves up the board)
     -PAWN:  [(-1, 0)],  # Black pawn (moves down the board)
 

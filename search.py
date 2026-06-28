@@ -2,7 +2,7 @@
 import math
 import time
 from dorse import Position, Move, WHITE
-from evaluation import PIECE_VALUES
+from evaluate import PIECE_VALUES
 from utils import PIECE_INDEX
 
 INF = 1_000_000
@@ -31,7 +31,7 @@ class Searcher:
         self.hh = [[0] * 64 for _ in range(12)]
         self.killers = [[None, None] for _ in range(MAX_PLY)]
         self.nodes = 0
-        self.pv = [[None] * MAX_PLY for _ in range(MAX_PLY)]
+        self.pv = [[None] * MAX_PLY for _ in range(MAX_PLY)]  # Principal Variance
         self.pv_len = [0] * MAX_PLY
 
     def search(self, position: Position, depth: int | None = None, movetime: float | None = None) -> Move | None:
@@ -53,14 +53,14 @@ class Searcher:
 
         best_move: Move | None = None
 
-        for c_depth in range(1, depth + 1):  # ID
+        for c_depth in range(1, depth + 1):  # Iterative Deepening
             if self.time_up():
                 break
 
             alpha = -INF
             beta = INF
 
-            l_best = None
+            l_best = None  # local best move
             moves = position.gen_moves()
             self.score_moves(moves, 0)
             if best_move is not None and best_move in moves:
@@ -149,7 +149,7 @@ class Searcher:
 
         best_move = None
         best_score = -INF
-        found = 0
+        found = 0  # legal moves found
 
         moves = position.gen_moves()
         self.score_moves(moves, ply)
@@ -261,7 +261,7 @@ class Searcher:
         for move in moves:
             mover = position.sd
             position.push(move)
-            if position.in_check(mover):  # Illegal move, skip
+            if position.in_check(mover):  # illegal move, skip
                 position.pop()
                 continue
 
