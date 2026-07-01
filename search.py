@@ -244,15 +244,14 @@ class Searcher:
         self.nodes += 1
         self.pv_len[ply] = ply
 
-        score = position.eval if position.sd == WHITE else -position.eval
-        if score >= beta:
-            return beta
-        if score > alpha:
-            alpha = score
-
         if position.in_check(position.sd):
             moves = position.gen_moves()
         else:
+            score = position.eval if position.sd == WHITE else -position.eval
+            if score >= beta:
+                return beta
+            if score > alpha:
+                alpha = score
             moves = position.gen_captures()
 
         self.score_moves(moves, ply)
