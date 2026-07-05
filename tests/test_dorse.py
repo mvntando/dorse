@@ -12,8 +12,7 @@ INIT_BOARD, WC, BC, EP, SD = parse_fen(STARTPOS)
 
 # Position initialization tests
 def test_initial_position():
-    board, wc, bc, ep, sd = parse_fen(STARTPOS)
-    pos = Position(board, wc, bc, ep, sd)
+    pos = Position(*parse_fen(STARTPOS))
 
     expected = [
         [ 4, 2, 3, 5, 6, 3, 2, 4],  # y = 0 (rank 1)
@@ -35,8 +34,7 @@ def test_initial_position():
 
 # GEN_MOVE TESTS
 def test_gen_moves_start():
-    board, wc, bc, ep, sd = parse_fen(STARTPOS)
-    pos = Position(board, wc, bc, ep, sd)
+    pos = Position(*parse_fen(STARTPOS))
     moves = pos.gen_moves()
     move_strs = {m.uci() for m in moves}
 
@@ -501,8 +499,7 @@ def test_push_pop():
 
 # Test hash consistency
 def test_push_hash():
-    board, wc, bc, ep, sd = parse_fen(STARTPOS)
-    pos = Position(board, wc, bc, ep, sd)
+    pos = Position(*parse_fen(STARTPOS))
 
     for _ in range(1000):
         moves = pos.gen_moves()
@@ -513,8 +510,7 @@ def test_push_hash():
     assert pos.hash == pos.gen_hash()
 
 def test_push_pop_hash():
-    board, wc, bc, ep, sd = parse_fen(STARTPOS)
-    pos = Position(board, wc, bc, ep, sd)
+    pos = Position(*parse_fen(STARTPOS))
     original_hash = pos.hash
 
     stack = []
@@ -536,8 +532,7 @@ from evaluate import evaluator
 
 # Test incremental evaluation consistency
 def test_push_eval():
-    board, wc, bc, ep, sd = parse_fen(STARTPOS)
-    pos = Position(board, wc, bc, ep, sd)
+    pos = Position(*parse_fen(STARTPOS))
 
     for move in pos.gen_moves():
         pos.push(move)
@@ -546,8 +541,7 @@ def test_push_eval():
         pos.pop()
 
 def test_push_eval_deeper():
-    board, wc, bc, ep, sd = parse_fen(STARTPOS)
-    pos = Position(board, wc, bc, ep, sd)
+    pos = Position(*parse_fen(STARTPOS))
 
     for move in pos.gen_moves():
         pos.push(move)
@@ -561,8 +555,7 @@ def test_push_eval_deeper():
 
 # POP TESTS
 def test_pop_white():
-    board, wc, bc, ep, sd = parse_fen(STARTPOS)
-    pos = Position(board, wc, bc, ep, sd)
+    pos = Position(*parse_fen(STARTPOS))
     orig_pos = pos.copy()
 
     move = Move(coord('e2'), coord('e4'), 0, PAWN)
@@ -657,8 +650,7 @@ def test_pop_promotion_black():
     assert pos == orig_pos
 
 def test_pop_full():
-    board, wc, bc, ep, sd = parse_fen(STARTPOS)
-    pos = Position(board, wc, bc, ep, sd)
+    pos = Position(*parse_fen(STARTPOS))
     orig_pos = pos.copy()
 
     moves = pos.gen_moves()
@@ -671,8 +663,7 @@ def test_pop_full():
         assert after == orig_pos, f"Position corrupted by move: {move.uci()}"
 
 def test_pop_many():
-    board, wc, bc, ep, sd = parse_fen(STARTPOS)
-    pos = Position(board, wc, bc, ep, sd)
+    pos = Position(*parse_fen(STARTPOS))
     orig_pos = pos.copy()
 
     moves = pos.gen_moves()
@@ -687,8 +678,7 @@ def test_pop_many():
 
 # IN_CHECK TESTS
 def test_in_check_start():
-    board, wc, bc, ep, sd = parse_fen(STARTPOS)
-    pos = Position(board, wc, bc, ep, sd)
+    pos = Position(*parse_fen(STARTPOS))
 
     assert not pos.in_check(1)
     assert not pos.in_check(-1)
@@ -725,8 +715,7 @@ def test_make_uci_move_e2e4():
     assert pos.board[3][4] == PAWN  # e4 pawn
 
 def test_make_uci_move_e7e5():
-    board, wc, bc, ep, sd = parse_fen(STARTPOS)
-    pos = Position(board, wc, bc, ep, sd)
+    pos = Position(*parse_fen(STARTPOS))
     pos.make_uci_move("e2e4")
     pos.make_uci_move("e7e5")
 
@@ -734,8 +723,7 @@ def test_make_uci_move_e7e5():
     assert pos.board[4][4] == -PAWN  # e5 pawn
 
 def test_make_uci_move_sequence():
-    board, wc, bc, ep, sd = parse_fen(STARTPOS)
-    pos = Position(board, wc, bc, ep, sd)
+    pos = Position(*parse_fen(STARTPOS))
 
     moves = ["e2e4", "e7e5", "g1f3", "b8c6"]
     for uci in moves:
@@ -772,9 +760,7 @@ def test_make_uci_move_pseudo_illegal():
         pos.make_uci_move("e2e5")  # illegal
 
 def test_make_uci_move_chess960():
-    fen = STARTPOS
-    board, wc, bc, ep, sd = parse_fen(fen)
-    pos = Position(board, wc, bc, ep, sd)
+    pos = Position(*parse_fen(STARTPOS))
 
     pos.make_uci_move("e2e4")
     assert pos.board[1][4] == EMPTY

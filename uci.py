@@ -87,8 +87,7 @@ def parse_position(line: str) -> Position | None:
         idx = 2
     elif tokens[1] == "fen":
         fen = " ".join(tokens[2:8])
-        board, wc, bc, ep, sd = utils.parse_fen(fen)
-        pos = Position(board, wc, bc, ep, sd)
+        pos = Position(*utils.parse_fen(fen))
         idx = 8
     else:
         return None

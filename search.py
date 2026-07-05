@@ -100,7 +100,7 @@ class Searcher:
             pv_moves = self.pv[0][:self.pv_len[0]]
             pv_str = " ".join(m.uci() for m in pv_moves if m)
 
-            print(f"info depth {c_depth} score cp {alpha} nodes {self.nodes} time {elapsed} nps {nps} pv {pv_str}")
+            print(f"info depth {c_depth} score cp {alpha} nodes {self.nodes} time {elapsed} nps {nps} pv {pv_str}", flush=True)
 
         return best_move
 
