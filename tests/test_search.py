@@ -7,20 +7,31 @@ from search import Searcher
 def test_search_pv_correctness():
     position = Position(*parse_fen(START_POS))
     searcher = Searcher()
-    depth = 3
-    searcher.search(position, depth=depth)
+    searcher.search(position, depth=3)
 
     pv = searcher.pv[0][:searcher.pv_len[0]]
-    assert len(pv) == depth, f"pv={pv}, len={len(pv)}, expected depth={depth}"
+    assert len(pv) == 3, f"pv={pv}, len={len(pv)}, expected depth={3}"
 
 def test_search_pv_correctness_multisearch():
     position = Position(*parse_fen(START_POS))
     searcher = Searcher()
-    depth = 3
-    searcher.search(position, depth=depth)
 
-    depth = 3
-    searcher.search(position, depth=depth)
+    searcher.search(position, depth=3)
+    pv3 = searcher.pv[0][:searcher.pv_len[0]]
+    assert len(pv3) == 3, f"pv={pv3}, len={len(pv3)}, expected depth=3"
 
-    pv = searcher.pv[0][:searcher.pv_len[0]]
-    assert len(pv) == depth, f"pv={pv}, len={len(pv)}, expected depth={depth}"
+    searcher.search(position, depth=3)
+    pv3 = searcher.pv[0][:searcher.pv_len[0]]
+    assert len(pv3) == 3, f"pv={pv3}, len={len(pv3)}, expected depth=3"
+
+def test_search_pv_correctness_deepsearch():
+    position = Position(*parse_fen(START_POS))
+    searcher = Searcher()
+
+    searcher.search(position, depth=3)
+    pv3 = searcher.pv[0][:searcher.pv_len[0]]
+    assert len(pv3) == 3, f"pv={pv3}, len={len(pv3)}, expected depth=3"
+
+    searcher.search(position, depth=5)
+    pv5 = searcher.pv[0][:searcher.pv_len[0]]
+    assert len(pv5) == 5, f"pv={pv5}, len={len(pv5)}, expected depth=5"

@@ -129,14 +129,16 @@ class Searcher:
         # tt probe
         if entry:
             entry_depth, entry_score, entry_flag, entry_move, _ = entry
-
-            if entry_depth >= depth:
+            pv_node = (beta - alpha) > 1  # no cut off at PV nodes
+            if entry_depth >= depth and not pv_node:
                 if entry_flag == EXACT:
                     return entry_score
                 elif entry_flag == LOWERBOUND and entry_score >= beta:
                     return entry_score
                 elif entry_flag == UPPERBOUND and entry_score <= alpha:
                     return entry_score
+
+            tt_move = entry_move
 
         # NMP
         if depth >= 3 and not position.in_check(position.sd):
@@ -155,7 +157,6 @@ class Searcher:
         self.score_moves(moves, ply)
         # tt move ordering
         if entry:
-            tt_move = entry[3]  # index 3 is best_move
             for m in moves:
                 if m == tt_move:
                     m.score = 10_000_000
