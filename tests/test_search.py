@@ -5,7 +5,7 @@ from search import Searcher
 # TESTS FOR SEARCH MODULE
 
 def test_search_pv_correctness():
-    position = Position(*parse_fen(START_POS))
+    position = Position(*parse_fen("8/kP1K4/P1P5/3N4/6P1/8/6P1/8 b - - 2 58"))  # other fens do fail, e.g "8/kP1K4/P1P5/3N4/6P1/8/6P1/8 b - - 2 58" at depth > 5
     searcher = Searcher()
     searcher.search(position, depth=3)
 

@@ -22,7 +22,7 @@ class Searcher:
     killers: list[list[Move | None]]
     pv: list[list[Move | None]]
 
-    __slots__ = ('tt_size', 'tt_mask', 'tt', 'hh', 'killers', 'nodes', 'pv', 'pv_len', 'stop', 'start_time', 'time_limit')
+    __slots__ = ('tt_size', 'tt_mask', 'tt', 'hh', 'killers', 'nodes', 'qnodes', 'depth', 'seldepth', 'pv', 'pv_len', 'stop', 'start_time', 'time_limit')
 
     def __init__(self):
         self.tt_size = 1 << 19  # 512K entries
@@ -31,15 +31,19 @@ class Searcher:
         self.hh = [[0] * 64 for _ in range(12)]
         self.killers = [[None, None] for _ in range(MAX_PLY)]
         self.nodes = 0
+        self.qnodes = 0
+        self.depth = 0
+        self.seldepth = 0
         self.pv = [[None] * MAX_PLY for _ in range(MAX_PLY)]  # Principal Variance
         self.pv_len = [0] * MAX_PLY
 
-    def search(self, position: Position, depth: int | None = None, movetime: float | None = None) -> Move | None:
+    def search(self, position: Position, depth: int | None = None, movetime: float | None = None, verbose: bool = True) -> Move | None:
         """
         Search to find the best move.
         """
 
         self.nodes = 0
+        self.seldepth = 0
         self.stop = False
         self.start_time = time.perf_counter()
 
@@ -94,13 +98,15 @@ class Searcher:
 
             if l_best is not None:
                 best_move = l_best
+                self.depth = c_depth
 
-            elapsed = int((time.perf_counter() - self.start_time) * 1000)
-            nps = int(self.nodes * 1000 / elapsed) if elapsed > 0 else 0
-            pv_moves = self.pv[0][:self.pv_len[0]]
-            pv_str = " ".join(m.uci() for m in pv_moves if m)
+            if verbose:
+                elapsed = int((time.perf_counter() - self.start_time) * 1000)
+                nps = int(self.nodes * 1000 / elapsed) if elapsed > 0 else 0
+                pv_moves = self.pv[0][:self.pv_len[0]]
+                pv_str = " ".join(m.uci() for m in pv_moves if m)
 
-            print(f"info depth {c_depth} score cp {alpha} nodes {self.nodes} time {elapsed} nps {nps} pv {pv_str}", flush=True)
+                print(f"info depth {c_depth} seldepth {self.seldepth} score cp {alpha} nodes {self.nodes} time {elapsed} nps {nps} pv {pv_str}", flush=True)
 
         return best_move
 
@@ -115,6 +121,8 @@ class Searcher:
             return 0
 
         if depth <= 0:
+            if ply > self.seldepth:
+                self.seldepth = ply
             return self.qsearch(position, alpha, beta, ply)
 
         hh = self.hh
@@ -217,8 +225,7 @@ class Searcher:
         if not found:
             if position.in_check(position.sd):
                 return -MATE + ply  # mate
-            else:
-                return 0  # stalemate
+            return 0  # stalemate
 
         # tt store
         if best_score <= og_alpha:
@@ -243,6 +250,9 @@ class Searcher:
             return 0
 
         self.nodes += 1
+        self.qnodes += 1
+        if ply > self.seldepth:
+            self.seldepth = ply
         self.pv_len[ply] = ply
 
         if position.in_check(position.sd):
