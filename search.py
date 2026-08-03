@@ -43,6 +43,7 @@ class Searcher:
         """
 
         self.nodes = 0
+        self.qnodes = 0
         self.seldepth = 0
         self.stop = False
         self.start_time = time.perf_counter()
