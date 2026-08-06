@@ -22,7 +22,7 @@ class Searcher:
     killers: list[list[Move | None]]
     pv: list[list[Move | None]]
 
-    __slots__ = ('tt_size', 'tt_mask', 'tt', 'hh', 'killers', 'nodes', 'qnodes', 'depth', 'seldepth', 'pv', 'pv_len', 'stop', 'start_time', 'time_limit')
+    __slots__ = ('tt_size', 'tt_mask', 'tt', 'hh', 'killers', 'nodes', 'qnodes', 'depth', 'seldepth', 'score', 'hashfull', 'pv', 'pv_len', 'stop', 'start_time', 'time_limit')
 
     def __init__(self):
         self.tt_size = 1 << 19  # 512K entries
@@ -34,6 +34,8 @@ class Searcher:
         self.qnodes = 0
         self.depth = 0
         self.seldepth = 0
+        self.score = 0
+        self.hashfull = 0
         self.pv = [[None] * MAX_PLY for _ in range(MAX_PLY)]  # Principal Variance
         self.pv_len = [0] * MAX_PLY
 
@@ -100,14 +102,16 @@ class Searcher:
             if l_best is not None:
                 best_move = l_best
                 self.depth = c_depth
+                self.score = alpha
 
             if verbose:
                 elapsed = int((time.perf_counter() - self.start_time) * 1000)
                 nps = int(self.nodes * 1000 / elapsed) if elapsed > 0 else 0
+                hashfull = int(self.hashfull * 1000 / self.tt_size)
                 pv_moves = self.pv[0][:self.pv_len[0]]
                 pv_str = " ".join(m.uci() for m in pv_moves if m)
 
-                print(f"info depth {c_depth} seldepth {self.seldepth} score cp {alpha} nodes {self.nodes} time {elapsed} nps {nps} pv {pv_str}", flush=True)
+                print(f"info depth {self.depth} seldepth {self.seldepth} score cp {self.score} nodes {self.nodes} time {elapsed} nps {nps} hashfull {hashfull} pv {pv_str}", flush=True)
 
         return best_move
 
@@ -290,6 +294,8 @@ class Searcher:
         idx = key & self.tt_mask
         existing = self.tt[idx]
         if existing is None or depth >= existing[0]:
+            if existing is None:
+                self.hashfull += 1
             self.tt[idx] = (depth, score, flag, move, key)
 
     def tt_lookup(self, key: int) -> tuple[int, int, int, Move | None, int] | None:
