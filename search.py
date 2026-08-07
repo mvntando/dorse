@@ -17,7 +17,7 @@ LOWERBOUND = 1
 UPPERBOUND = 2
 
 class Searcher:
-    tt: list[tuple[int, int, int, Move | None, int] | None]
+    tt: list[tuple[int, int, int, int, Move | None] | None]
     hh: list[list[int]]
     killers: list[list[Move | None]]
     pv: list[list[Move | None]]
@@ -137,11 +137,12 @@ class Searcher:
 
         og_alpha = alpha
         key = position.hash
-        entry = self.tt_lookup(key)
+        entry = self.tt_lookup(key, ply)
+        tt_move: Move | None = None
 
         # tt probe
         if entry:
-            entry_depth, entry_score, entry_flag, entry_move, _ = entry
+            _, entry_depth, entry_score, entry_flag, entry_move = entry
             pv_node = (beta - alpha) > 1  # no cut off at PV nodes
             if entry_depth >= depth and not pv_node:
                 if entry_flag == EXACT:
@@ -205,7 +206,7 @@ class Searcher:
                 best_move = move
 
             if score >= beta:
-                self.tt_store(depth, score, LOWERBOUND, best_move, key)
+                self.tt_store(key, depth, ply, score, LOWERBOUND, best_move)
 
                 if move.captured is None:
                     # Update heuristics
@@ -240,7 +241,7 @@ class Searcher:
         else:
             flag = EXACT
 
-        self.tt_store(depth, best_score, flag, best_move, key)
+        self.tt_store(key, depth, ply, best_score, flag, best_move)
 
         return best_score
 
@@ -253,6 +254,9 @@ class Searcher:
             return 0
         if self.time_up():
             return 0
+        if ply >= MAX_PLY:
+            score = position.eval if position.sd == WHITE else -position.eval
+            return score
 
         self.nodes += 1
         self.qnodes += 1
@@ -273,6 +277,7 @@ class Searcher:
         self.score_moves(moves, ply)
         moves.sort(key=lambda m: m.score, reverse=True)
 
+        found = 0
         for move in moves:
             mover = position.sd
             position.push(move)
@@ -288,21 +293,38 @@ class Searcher:
             if score > alpha:
                 alpha = score
 
+        if not found:
+            if position.in_check(position.sd):
+                return -MATE + ply
+
         return alpha
 
-    def tt_store(self, depth: int, score: int, flag: int, move: Move | None, key: int) -> None:
+    def tt_store(self, key: int, depth: int, ply: int, score: int, flag: int, move: Move | None) -> None:
         idx = key & self.tt_mask
         existing = self.tt[idx]
         if existing is None or depth >= existing[0]:
             if existing is None:
                 self.hashfull += 1
-            self.tt[idx] = (depth, score, flag, move, key)
 
-    def tt_lookup(self, key: int) -> tuple[int, int, int, Move | None, int] | None:
+            # Store mate scores ply-relative
+            if score > MATE - MAX_PLY:
+                score += ply
+            elif score < -MATE + MAX_PLY:
+                score -= ply
+            self.tt[idx] = (key, depth, score, flag, move)
+
+    def tt_lookup(self, key: int, ply: int) -> tuple[int, int, int, int, Move | None] | None:
         idx = key & self.tt_mask
         entry = self.tt[idx]
-        if entry and entry[4] == key:  # verify not a collision
-            return entry  # (depth, score, flag, move, key)
+        if entry and entry[0] == key:  # verify not a collision
+            key, depth, score, flag, move = entry
+
+            # Convert mate scores from ply-relative
+            if score > MATE - MAX_PLY:
+                score -= ply
+            elif score < -MATE + MAX_PLY:
+                score += ply
+            return (key, depth, score, flag, move)  # (key, depth, score, flag, move)
         return None
 
     # Score moves using MVV-LVA and store in move.score
