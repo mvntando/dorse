@@ -125,6 +125,9 @@ class Searcher:
         if self.time_up():
             return 0
 
+        if sum(1 for undo in position.stack if undo.hash == position.hash) >= 2:
+            return 0  # 3-fold
+
         if depth <= 0:
             if ply > self.seldepth:
                 self.seldepth = ply
@@ -247,7 +250,7 @@ class Searcher:
 
     def qsearch(self, position: Position, alpha: int, beta: int, ply: int) -> int:
         """
-        Quiescence search to evaluate "quiet" positions and avoid horizon effect.
+        Quiescence search to evaluate quiet positions and avoid horizon effect.
         """
 
         if self.stop:
@@ -284,6 +287,8 @@ class Searcher:
             if position.in_check(mover):  # illegal move, skip
                 position.pop()
                 continue
+
+            found += 1
 
             score = -self.qsearch(position, -beta, -alpha, ply + 1)
             position.pop()

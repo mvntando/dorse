@@ -1,13 +1,12 @@
 import pytest
 import random
 from dorse import Position, Move
-from utils import START_POS, parse_fen
+from utils import STARTPOS, parse_fen
 from utils import EMPTY, PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING
 from helpers import coord
 
 # TESTS FOR DORSE MODULE
 
-STARTPOS = START_POS
 INIT_BOARD, WC, BC, EP, SD = parse_fen(STARTPOS)
 
 # Position initialization tests

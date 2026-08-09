@@ -1,5 +1,5 @@
 from dorse import Position
-from utils import parse_fen, START_POS 
+from utils import parse_fen, STARTPOS 
 from search import Searcher
 
 # TESTS FOR SEARCH MODULE
@@ -13,7 +13,7 @@ def test_search_pv_correctness():
     assert len(pv) == 3, f"pv={pv}, len={len(pv)}, expected depth={3}"
 
 def test_search_pv_correctness_multisearch():
-    position = Position(*parse_fen(START_POS))
+    position = Position(*parse_fen(STARTPOS))
     searcher = Searcher()
 
     searcher.search(position, depth=3)
@@ -25,7 +25,7 @@ def test_search_pv_correctness_multisearch():
     assert len(pv3) == 3, f"pv={pv3}, len={len(pv3)}, expected depth=3"
 
 def test_search_pv_correctness_deepsearch():
-    position = Position(*parse_fen(START_POS))
+    position = Position(*parse_fen(STARTPOS))
     searcher = Searcher()
 
     searcher.search(position, depth=3)

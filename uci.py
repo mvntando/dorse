@@ -4,7 +4,7 @@ from dorse import Position
 import utils
 from search import Searcher
 
-INIT_BOARD, WC, BC, EP, SD = utils.parse_fen(utils.START_POS)
+INIT_BOARD, WC, BC, EP, SD = utils.parse_fen(utils.STARTPOS)
 
 def print_id():
     print("id name Dorse")

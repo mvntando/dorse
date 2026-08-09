@@ -1,6 +1,6 @@
 import io
 import pytest
-from utils import parse_fen, START_POS, WHITE, BLACK, EMPTY, PAWN, KNIGHT
+from utils import parse_fen, STARTPOS, WHITE, BLACK, EMPTY, PAWN, KNIGHT
 from uci import parse_position, uci_loop
 
 # TESTS FOR UCI MODULE
@@ -79,7 +79,7 @@ def test_uci_loop_quit(monkeypatch, capsys):
 def test_parse_position_startpos():
     pos = parse_position("position startpos")
 
-    board, *_ = parse_fen(START_POS)
+    board, *_ = parse_fen(STARTPOS)
 
     assert pos is not None
     assert pos.board == board

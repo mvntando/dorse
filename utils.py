@@ -37,7 +37,7 @@ PIECE_INDEX = {
 }
 
 # Initial chess board setup
-START_POS = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+STARTPOS = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
 
 # Parse FEN string into board representation and game state
 def parse_fen(fen: str) -> tuple[list[list[int]], tuple[int, int], tuple[int, int], tuple[int, int] | None, int]:
