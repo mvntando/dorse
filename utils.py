@@ -230,3 +230,92 @@ def attacked(pos, sq: tuple[int, int], opponent: int) -> bool:
             break  # blocked
 
     return False
+
+# Check for pieces attacking a square
+def attackers(pos, sq: tuple[int, int]):
+    r, c = sq
+    board = pos.board
+    s = r*8 + c
+    attackers: list[tuple[int, tuple[int, int]]] = []
+
+    # --- Pawn attacks ---
+    for rr, cc in PAWN_ATTACKS[BLACK][s]:  # white pawns reverse lookup
+        piece = board[rr][cc]
+        if piece == PAWN:
+            attackers.append((piece, (rr, cc)))
+    for rr, cc in PAWN_ATTACKS[WHITE][s]:  # black pawns reverse lookup
+        piece = board[rr][cc]
+        if piece == -PAWN:
+            attackers.append((piece, (rr, cc)))
+        
+    # --- Knight attacks ---
+    for rr, cc in KNIGHT_ATTACKS[s]:
+        piece = board[rr][cc]
+        if abs(piece) == KNIGHT:
+            attackers.append((piece, (rr, cc)))
+
+    # --- King attacks ---
+    for rr, cc in KING_ATTACKS[s]:
+        piece = board[rr][cc]
+        if abs(piece) == KING:
+            attackers.append((piece, (rr, cc)))
+
+    # --- Sliding attacks ---
+    for ray in ROOK_RAYS[s]:  # rook/queen
+        for rr, cc in ray:
+            piece = board[rr][cc]
+            if piece == EMPTY:
+                continue
+            if abs(piece) == ROOK or abs(piece) == QUEEN:
+                attackers.append((piece, (rr, cc)))
+            break
+
+    for ray in BISHOP_RAYS[s]:  # bishop/queen
+        for rr, cc in ray:
+            piece = board[rr][cc]
+            if piece == EMPTY:
+                continue
+            if abs(piece) == BISHOP or abs(piece) == QUEEN:
+                attackers.append((piece, (rr, cc)))
+            break
+
+    return attackers
+
+# Check for a piece attacking a square from a ray, revealed after v_sq emptied
+def xray(pos, sq, v_sq):
+    # sq:   target square
+    # v_sq: vacated square
+    board = pos.board
+    s = sq[0]*8 + sq[1]
+
+    dr = v_sq[0] - sq[0]
+    dc = v_sq[1] - sq[1]
+
+    if dr == 0 or dc == 0:
+        rays = ROOK_RAYS[s]
+        slider_a, slider_b = ROOK, QUEEN
+    elif abs(dr) == abs(dc):
+        rays = BISHOP_RAYS[s]
+        slider_a, slider_b = BISHOP, QUEEN
+    else:
+        return None
+
+    xray = None
+    for ray in rays:
+        if v_sq in ray:
+            xray = ray
+            index = ray.index(v_sq)
+            break
+
+    if xray is None:
+        return None
+
+    for rr, cc in xray[index + 1:]:
+        piece = board[rr][cc]
+        if piece == EMPTY:
+            continue
+        if abs(piece) == slider_a or abs(piece) == slider_b:
+            return (piece, (rr, cc))
+        break
+
+    return None
