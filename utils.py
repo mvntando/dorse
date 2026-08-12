@@ -1,5 +1,6 @@
 # Zobrist hashing and board utilities
 import random
+from typing import Any
 
 _rng = random.Random(0)  # isolated, deterministic RNG
 
@@ -232,7 +233,7 @@ def attacked(pos, sq: tuple[int, int], opponent: int) -> bool:
     return False
 
 # Check for pieces attacking a square
-def attackers(pos, sq: tuple[int, int]):
+def attackers(pos, sq: tuple[int, int]) -> list[tuple[int, tuple[int, int]]]:
     r, c = sq
     board = pos.board
     s = r*8 + c
@@ -282,7 +283,7 @@ def attackers(pos, sq: tuple[int, int]):
     return attackers
 
 # Check for a piece attacking a square from a ray, revealed after v_sq emptied
-def xray(pos, sq, v_sq):
+def xray(pos, sq, v_sq) -> tuple[int, tuple[int, int]] | None:
     # sq:   target square
     # v_sq: vacated square
     board = pos.board
@@ -293,10 +294,10 @@ def xray(pos, sq, v_sq):
 
     if dr == 0 or dc == 0:
         rays = ROOK_RAYS[s]
-        slider_a, slider_b = ROOK, QUEEN
+        slider, queen = ROOK, QUEEN
     elif abs(dr) == abs(dc):
         rays = BISHOP_RAYS[s]
-        slider_a, slider_b = BISHOP, QUEEN
+        slider, queen = BISHOP, QUEEN
     else:
         return None
 
@@ -314,7 +315,7 @@ def xray(pos, sq, v_sq):
         piece = board[rr][cc]
         if piece == EMPTY:
             continue
-        if abs(piece) == slider_a or abs(piece) == slider_b:
+        if abs(piece) == slider or abs(piece) == queen:
             return (piece, (rr, cc))
         break
 

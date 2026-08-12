@@ -1,15 +1,16 @@
 # Basic alpha-beta search with iterative deepening
 import math
 import time
-from dorse import Position, Move, WHITE
+from dorse import Position, Move, KING, WHITE
 from evaluate import PIECE_VALUES
-from utils import PIECE_INDEX
+from utils import PIECE_INDEX, attackers, xray
 
 INF = 1_000_000
 MATE = 20_000
 
 MAX_DEPTH = 64
 MAX_PLY = 64
+MARGIN = 100
 
 # tt entry flags
 EXACT = 0
@@ -267,14 +268,15 @@ class Searcher:
             self.seldepth = ply
         self.pv_len[ply] = ply
 
-        if position.in_check(position.sd):
+        in_check = position.in_check(position.sd)
+        if in_check:
             moves = position.gen_moves()
         else:
-            score = position.eval if position.sd == WHITE else -position.eval
-            if score >= beta:
+            standpat = position.eval if position.sd == WHITE else -position.eval
+            if standpat >= beta:
                 return beta
-            if score > alpha:
-                alpha = score
+            if standpat > alpha:
+                alpha = standpat
             moves = position.gen_captures()
 
         self.score_moves(moves, ply)
@@ -282,6 +284,14 @@ class Searcher:
 
         found = 0
         for move in moves:
+            # Delta pruning
+            if not in_check and move.captured and not move.promo:
+                if standpat + PIECE_VALUES[abs(move.captured)] + MARGIN < alpha:
+                    continue
+            # SEE
+            if self.see(position, move) < 0:
+                continue
+
             mover = position.sd
             position.push(move)
             if position.in_check(mover):  # illegal move, skip
@@ -353,6 +363,72 @@ class Searcher:
                     piece_index = PIECE_INDEX[move.piece]
                     to_sq = move.dst[0] * 8 + move.dst[1]
                     move.score += self.hh[piece_index][to_sq]
+
+    # Static Exchange Evaluation
+    def see(self, position: Position, move: Move):
+        dst = move.dst
+        src = move.src
+        board = position.board
+
+        gain = [0] * 32
+        d = 0
+        gain[0] = PIECE_VALUES[abs(move.captured)] if move.captured else 0
+
+        piece = board[src[0]][src[1]]
+        value = PIECE_VALUES[abs(piece)]
+
+        atks = attackers(position, dst)
+        white = sorted(
+            [a for a in atks if a[0] > 0 and a[1] != src],
+            key=lambda a: PIECE_VALUES[abs(a[0])]
+        )
+        black = sorted(
+            [a for a in atks if a[0] < 0 and a[1] != src],
+            key=lambda a: PIECE_VALUES[abs(a[0])]
+        )
+
+        mover = -position.sd
+        vacated = src
+
+        while True:
+            d += 1
+            gain[d] = value - gain[d - 1]
+            if max(-gain[d - 1], gain[d]) < 0:
+                break
+
+            lst = white if mover == WHITE else black
+
+            revealed = xray(position, dst, vacated)
+            if revealed:
+                xraypiece, xraysq = revealed
+                target = white if xraypiece > 0 else black
+                inserted = False
+                for i, (p, _) in enumerate(target):
+                    if PIECE_VALUES[abs(p)] > PIECE_VALUES[abs(xraypiece)]:
+                        target.insert(i, (xraypiece, xraysq))
+                        inserted = True
+                        break
+                if not inserted:
+                    target.append((xraypiece, xraysq))
+
+            if not lst:
+                break
+
+            if abs(lst[0][0]) == KING:
+                opponents = black if mover == WHITE else white
+                if opponents:
+                    break  # illegal king capture
+
+            nxt = lst.pop(0)
+            value = PIECE_VALUES[abs(nxt[0])]
+            vacated = nxt[1]
+            mover = -mover
+
+        while d > 1:
+            d -= 1
+            gain[d - 1] = -max(-gain[d - 1], gain[d])
+
+        return gain[0]
 
     def time_up(self) -> bool:
         if self.time_limit is None:
