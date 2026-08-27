@@ -180,7 +180,7 @@ class Position:
 
                 pa = abs(piece)
 
-                # --- Pawn logic ---
+                # Pawn logic
                 if pa == PAWN:
                     if self.sd == WHITE:
                         fwd_dirs = DIRS[PAWN]
@@ -226,7 +226,7 @@ class Position:
                     # done with this pawn
                     continue
 
-                # --- Non-pawns ---
+                # Non-pawns
                 dirs = DIRS[pa]
                 sliding = pa in SLIDING
                 for dr, dc in dirs:
@@ -245,7 +245,7 @@ class Position:
                                 moves.append(Move((r0, c0), (r, c), 0, piece, target))
                             break
 
-                # --- Castling ---
+                # Castling
                 if pa == KING:
                     back_row = 0 if self.sd == WHITE else 7
                     rights = self.wc if self.sd == WHITE else self.bc
@@ -283,7 +283,7 @@ class Position:
 
                 pa = abs(piece)
 
-                # --- Pawn logic ---
+                # Pawn logic
                 if pa == PAWN:
                     cap_dirs = DIRS["P_cap"] if self.sd == WHITE else DIRS["p_cap"]
                     promo_row = 7 if self.sd == WHITE else 0
@@ -306,7 +306,7 @@ class Position:
                                 moves.append(Move((r0, c0), (r, c), 0, piece, captured))
                     continue
 
-                # --- Non-pawns ---
+                # Non-pawns
                 dirs = DIRS[pa]
                 sliding = pa in SLIDING
 
@@ -330,7 +330,7 @@ class Position:
 
     # Make a move
     def push(self, move: Move):
-        # --- Push undo ---
+        # Push undo
         undo = Undo(move, self.wc, self.bc, self.ep, self.sd, self.wk, self.bk,)
         undo.eval = self.eval
         undo.hash = self.hash
@@ -347,9 +347,9 @@ class Position:
             self.hash ^= EP_KEYS[self.ep[1]]
 
         captured = move.captured
-        # --- Handle en passant capture ---
+        # Handle en passant capture
         if abs(piece) == PAWN and self.ep and dst == self.ep:
-            # --- Add captured piece for en passant undo ---
+            # Add captured piece for en passant undo
             undo.ep_sq = (r0, c1)
 
             # Remove captured pawn from board and hash
@@ -366,7 +366,7 @@ class Position:
             self.hash ^= PIECE_KEYS[PIECE_INDEX[captured]][sq_to]
             self.eval -= piece_eval(captured, r1, c1)  # remove captured piece from evaluation
 
-        # --- Update castling rights if rook was captured ---
+        # Update castling rights if rook was captured
         if captured and abs(captured) == ROOK:
             if self.sd == WHITE:  # Captured black rook
                 if dst == (7, 0) and self.bc[0] != 0:  # a8 rook
@@ -389,13 +389,13 @@ class Position:
         sq_to = r1 * 8 + c1
         self.hash ^= PIECE_KEYS[PIECE_INDEX[piece]][sq_to]
 
-        # --- Move piece ---
+        # Move piece
         board[r1][c1] = piece
         board[r0][c0] = EMPTY
         self.eval -= piece_eval(piece, r0, c0)  # Icremental evaluation, piece leaving src, arriving dst
         self.eval += piece_eval(piece, r1, c1)
 
-        # --- Handle promotion ---
+        # Handle promotion
         if promo:
             self.hash ^= PIECE_KEYS[PIECE_INDEX[piece]][sq_to]  # remove pawn hash added before
             promo = promo * self.sd
@@ -405,7 +405,7 @@ class Position:
             self.eval -= piece_eval(piece, r1, c1)  # remove pawn value at dst and add promo value
             self.eval += piece_eval(promo, r1, c1)
 
-        # --- Handle castling (moving rook as well) ---
+        # Handle castling (moving rook as well)
         if abs(piece) == KING and abs(c1 - c0) == 2:
             rook = ROOK * self.sd
 
@@ -439,7 +439,7 @@ class Position:
                 self.eval -= piece_eval(rook, r1, 7)  # update rook eval
                 self.eval += piece_eval(rook, r1, 5)
 
-        # --- Update castling rights and king squares ---
+        # Update castling rights and king squares
         if abs(piece) == KING:  # King moved -> lose both rights
             if self.sd == WHITE:
                 if self.wc != (0, 0):
@@ -480,7 +480,7 @@ class Position:
                         self.hash ^= CASTLE_KEYS[3]  # remove black kingside hash
                         self.bc = (self.bc[0], 0)
 
-        # --- Update en passant target ---
+        # Update en passant target
         if abs(piece) == 1 and abs(r1 - r0) == 2:
             ep_row = (r0 + r1) // 2
             enemy = -PAWN * self.sd
@@ -493,7 +493,7 @@ class Position:
         else:
             self.ep = None
 
-        # --- Switch side ---
+        # Switch side
         self.hash ^= SIDE_KEY  # switch side hash
         self.sd = -self.sd
 
@@ -519,11 +519,11 @@ class Position:
 
         board = self.board
 
-        # --- Undo move ---
+        # Undo move
         board[r1][c1] = EMPTY
         board[r0][c0] = undo.move.piece
 
-        # --- Undo castling rook move ---
+        # Undo castling rook move
         if undo.castle is not None:
             if undo.castle == 1:  # kingside
                 rook = board[r1][5]
@@ -534,7 +534,7 @@ class Position:
                 board[r1][3] = EMPTY
                 board[r1][0] = rook
 
-        # --- Restore captured piece ---
+        # Restore captured piece
         if undo.move.captured:
             if undo.ep_sq:
                 er, ec = undo.ep_sq

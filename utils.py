@@ -196,22 +196,22 @@ def attacked(pos, sq: tuple[int, int], opponent: int) -> bool:
         pawn_table = PAWN_ATTACKS[WHITE]
         rook, bishop, queen = -ROOK, -BISHOP, -QUEEN
 
-    # --- Pawn attacks ---
+    # Pawn attacks
     for rr, cc in pawn_table[s]:
         if board[rr][cc] == pawn:
             return True
 
-    # --- Knight attacks ---
+    # Knight attacks
     for rr, cc in KNIGHT_ATTACKS[s]:
         if board[rr][cc] == knight:
             return True
 
-    # --- King attacks ---
+    # King attacks
     for rr, cc in KING_ATTACKS[s]:
         if board[rr][cc] == king:
             return True
 
-    # --- Sliding attacks ---
+    # Sliding attacks
     for ray in ROOK_RAYS[s]:  # rook/queen
         for rr, cc in ray:
             piece = board[rr][cc]
@@ -239,7 +239,7 @@ def attackers(pos, sq: tuple[int, int]) -> list[tuple[int, tuple[int, int]]]:
     s = r*8 + c
     attackers: list[tuple[int, tuple[int, int]]] = []
 
-    # --- Pawn attacks ---
+    # Pawn attacks
     for rr, cc in PAWN_ATTACKS[BLACK][s]:  # white pawns reverse lookup
         piece = board[rr][cc]
         if piece == PAWN:
@@ -249,19 +249,19 @@ def attackers(pos, sq: tuple[int, int]) -> list[tuple[int, tuple[int, int]]]:
         if piece == -PAWN:
             attackers.append((piece, (rr, cc)))
         
-    # --- Knight attacks ---
+    # Knight attacks
     for rr, cc in KNIGHT_ATTACKS[s]:
         piece = board[rr][cc]
         if abs(piece) == KNIGHT:
             attackers.append((piece, (rr, cc)))
 
-    # --- King attacks ---
+    # King attacks
     for rr, cc in KING_ATTACKS[s]:
         piece = board[rr][cc]
         if abs(piece) == KING:
             attackers.append((piece, (rr, cc)))
 
-    # --- Sliding attacks ---
+    # Sliding attacks
     for ray in ROOK_RAYS[s]:  # rook/queen
         for rr, cc in ray:
             piece = board[rr][cc]
