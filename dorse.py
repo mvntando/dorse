@@ -89,7 +89,7 @@ class Position:
     # bk      -- black king square
 
     # score   -- the board evaluation (none unless incremental evaluation is enabled)
-    # stack -- stack of Undo objects for undoing moves
+    # stack   -- stack of Undo objects for undoing moves
     # hash    -- zobrist hash of the position
 
     def __init__(self, board: list[list[int]], wc: tuple[int, int], bc: tuple[int, int], ep: tuple[int, int] | None, sd: int):

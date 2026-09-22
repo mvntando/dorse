@@ -1,6 +1,5 @@
 # Zobrist hashing and board utilities
 import random
-from typing import Any
 
 _rng = random.Random(0)  # isolated, deterministic RNG
 
@@ -283,14 +282,14 @@ def attackers(pos, sq: tuple[int, int]) -> list[tuple[int, tuple[int, int]]]:
     return attackers
 
 # Check for a piece attacking a square from a ray, revealed after v_sq emptied
-def xray(pos, sq, v_sq) -> tuple[int, tuple[int, int]] | None:
-    # sq:   target square
-    # v_sq: vacated square
+def xray(pos, sq, vsq) -> tuple[int, tuple[int, int]] | None:
+    # sq:  target square
+    # vsq: vacated square
     board = pos.board
     s = sq[0]*8 + sq[1]
 
-    dr = v_sq[0] - sq[0]
-    dc = v_sq[1] - sq[1]
+    dr = vsq[0] - sq[0]
+    dc = vsq[1] - sq[1]
 
     if dr == 0 or dc == 0:
         rays = ROOK_RAYS[s]
@@ -303,9 +302,9 @@ def xray(pos, sq, v_sq) -> tuple[int, tuple[int, int]] | None:
 
     xray = None
     for ray in rays:
-        if v_sq in ray:
+        if vsq in ray:
             xray = ray
-            index = ray.index(v_sq)
+            index = ray.index(vsq)
             break
 
     if xray is None:

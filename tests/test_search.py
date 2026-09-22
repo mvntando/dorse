@@ -38,6 +38,8 @@ def test_search_pv_correctness_deepsearch():
     pv5 = searcher.pv[0][:searcher.pv_len[0]]
     assert len(pv5) == 5, f"pv={pv5}, len={len(pv5)}, expected depth=5"
 
+# TODO: Add more tests (ab, hh, tt, etc)
+
 # SEE TESTS
 def test_see():
     position = Position(*parse_fen("r1bqkb1r/pppp1ppp/2n2n2/4p2Q/2B1P3/8/PPPP1PPP/RNB1K1NR w KQkq - 0 1"))

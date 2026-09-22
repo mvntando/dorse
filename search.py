@@ -71,8 +71,9 @@ class Searcher:
             l_best = None  # local best move
             moves = position.gen_moves()
             self.score_moves(moves, 0)
-            if best_move is not None and best_move in moves:
-                best_move.score = 10_000_000
+            match = next((m for m in moves if m == best_move), None)
+            if match is not None:
+                match.score = 10_000_000
             moves.sort(key=lambda m: m.score, reverse=True)
 
             for move in moves:
@@ -212,7 +213,7 @@ class Searcher:
             if score >= beta:
                 self.tt_store(key, depth, ply, score, LOWERBOUND, best_move)
 
-                if move.captured is None:
+                if not move.captured:
                     # Update heuristics
                     piece_index = PIECE_INDEX[move.piece]
                     to_sq = move.dst[0] * 8 + move.dst[1]
