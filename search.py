@@ -127,8 +127,10 @@ class Searcher:
         if self.time_up():
             return 0
 
-        if sum(1 for undo in position.stack if undo.hash == position.hash) >= 2:
-            return 0  # 3-fold
+        self.pv_len[ply] = ply
+
+        if any(undo.hash == position.hash for undo in position.stack):
+            return 0  # repetition
 
         if depth <= 0:
             if ply > self.seldepth:
@@ -138,7 +140,6 @@ class Searcher:
         hh = self.hh
         killers = self.killers
         self.nodes += 1
-        self.pv_len[ply] = ply
 
         og_alpha = alpha
         key = position.hash
@@ -166,7 +167,7 @@ class Searcher:
             score = -self.alphabeta(position, -beta, -beta + 1, depth - 1 - R, ply + 1)
             position.pop_null()
             if score >= beta:
-                return beta
+                return score if score < MATE - MAX_PLY else beta
 
         best_move = None
         best_score = -INF
@@ -206,6 +207,9 @@ class Searcher:
 
             position.pop()
 
+            if self.stop:
+                return 0
+
             if score > best_score:
                 best_score = score
                 best_move = move
@@ -217,7 +221,7 @@ class Searcher:
                     # Update heuristics
                     piece_index = PIECE_INDEX[move.piece]
                     to_sq = move.dst[0] * 8 + move.dst[1]
-                    hh[piece_index][to_sq] += depth * depth
+                    hh[piece_index][to_sq] = min(hh[piece_index][to_sq] + depth * depth, 70_000)
 
                     if killers[ply][0] != move:
                         killers[ply][1] = killers[ply][0]
@@ -275,7 +279,7 @@ class Searcher:
         else:
             standpat = position.eval if position.sd == WHITE else -position.eval
             if standpat >= beta:
-                return beta
+                return standpat
             if standpat > alpha:
                 alpha = standpat
             moves = position.gen_captures()
@@ -290,7 +294,7 @@ class Searcher:
                 if standpat + PIECE_VALUES[abs(move.captured)] + MARGIN < alpha:
                     continue
             # SEE
-            if self.see(position, move) < 0:
+            if not in_check and self.see(position, move) < 0:
                 continue
 
             mover = position.sd
@@ -305,7 +309,7 @@ class Searcher:
             position.pop()
 
             if score >= beta:
-                return beta
+                return score
             if score > alpha:
                 alpha = score
 
@@ -318,7 +322,7 @@ class Searcher:
     def tt_store(self, key: int, depth: int, ply: int, score: int, flag: int, move: Move | None) -> None:
         idx = key & self.tt_mask
         existing = self.tt[idx]
-        if existing is None or depth >= existing[0]:
+        if existing is None or depth >= existing[1]:
             if existing is None:
                 self.hashfull += 1
 
